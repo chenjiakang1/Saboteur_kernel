@@ -1,0 +1,27 @@
+# Unity 忽略文件
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+Assets/AssetStoreTools*
+*.csproj
+*.sln
+*.user
+*.unityproj
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+
+# macOS 忽略
+.DS_Store
+
+# VSCode 忽略
+.vscode/
+
+# 后端 Java 忽略
+loginbackend/.gradle/
+loginbackend/build/
+*.log
