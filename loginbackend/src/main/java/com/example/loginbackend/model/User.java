@@ -16,11 +16,15 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
+    private int score = 0;  // 新增字段：积分，默认值为 0
+
     public User() {}
 
     public User(String username, String password) {
         this.username = username;
         this.password = password;
+        this.score = 0;  // 默认值
     }
 
     // Getter & Setter
@@ -42,5 +46,13 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public void setScore(int score) {
+        this.score = score;
     }
 }
