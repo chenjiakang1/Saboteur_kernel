@@ -81,4 +81,27 @@ public class UserController {
                 .map(user -> new UserRankingDTO(user.getUsername(), user.getScore()))
                 .collect(Collectors.toList());
     }
+
+    // ✅ 修改密码接口
+    @PostMapping("/change-password")
+    public ResponseResult changePassword(@RequestParam String username,
+                                         @RequestParam String oldPassword,
+                                         @RequestParam String newPassword) {
+        User user = userRepository.findByUsername(username);
+        if (user == null) {
+            return new ResponseResult(false, "User not found");
+        }
+
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            return new ResponseResult(false, "Old password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        return new ResponseResult(true, "Password updated successfully");
+    }
+
 }
+
+
