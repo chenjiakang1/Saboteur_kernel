@@ -2,40 +2,47 @@ using UnityEngine;
 
 public class MapGenerator : MonoBehaviour
 {
-    public GameObject mapCellPrefab;  // 格子预制体
-    public Transform mapParent;       // 地图容器
+    public GameObject mapCellPrefab;
+    public Transform mapParent;
+    public int cols = 10; // 列数（水平数量）
+    public int rows = 5;  // 行数（垂直数量）
 
-    public int cols = 5;              // 横向格子数量
-    public int rows = 9;              // 纵向格子数量
+    public Sprite originSprite;
+    public Sprite terminusSprite;
 
-    public Sprite specialSprite;     // ✅ 特殊格子图片（Origin）
+    private MapCell[,] mapCells;
 
     void Start()
     {
-        GenerateGrid();
+        GenerateMap();
     }
 
-    void GenerateGrid()
+    void GenerateMap()
     {
-        for (int y = 0; y < rows; y++)
+        mapCells = new MapCell[rows, cols];  // 以行列的顺序存储
+
+        for (int row = 0; row < rows; row++)
         {
-            for (int x = 0; x < cols; x++)
+            for (int col = 0; col < cols; col++)
             {
                 GameObject cellObj = Instantiate(mapCellPrefab, mapParent);
                 MapCell cell = cellObj.GetComponent<MapCell>();
+                mapCells[row, col] = cell;
 
-                // ✅ 判断第三行第二列（第3行y=2，第2列x=1）
-                if (x == 1 && y == 2)
+                // 重要！！给cell名字，方便查看（非必要但推荐）
+                cellObj.name = $"Cell ({row + 1},{col + 1})";
+
+                // 特殊格子判断
+                if (row == 2 && col == 1) // 第3行第2列 -> Origin (因为索引从0开始)
                 {
-                    // 设置为Origin图片
-                    cellObj.GetComponent<UnityEngine.UI.Image>().sprite = specialSprite;
-
-                    // 禁止放置
-                    cell.isBlocked = true;
+                    cell.SetBlocked(originSprite);
+                }
+                else if ((row == 0 && col == 8) || (row == 2 && col == 8) || (row == 4 && col == 8))
+                {
+                    // 1,9  3,9  5,9 -> Terminus
+                    cell.SetBlocked(terminusSprite);
                 }
             }
         }
     }
 }
-
-

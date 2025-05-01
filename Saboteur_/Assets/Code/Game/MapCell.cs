@@ -1,18 +1,40 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class MapCell : MonoBehaviour
 {
-    public bool isOccupied = false;
-    public bool isBlocked = false;  // ✅ 新增：是否禁止放置（特殊格子用）
+    public bool isOccupied = false;   // 是否已被放置卡牌
+    public bool isBlocked = false;    // 是否为禁止放置格子
+    private Image image;
 
+    private void Awake()
+    {
+        image = GetComponent<Image>();
+    }
+
+    // ✅ 设置禁用格子（特殊格子用，如Origin、Terminus等）
+    public void SetBlocked(Sprite blockSprite)
+    {
+        isBlocked = true;
+
+        if (image != null)
+        {
+            image.sprite = blockSprite;
+            image.color = Color.white;
+        }
+    }
+
+    // ✅ 点击格子逻辑
     public void OnClick()
     {
+        // 禁用格子不能放置
         if (isBlocked)
         {
             Debug.Log("This cell is blocked!");
             return;
         }
 
+        // 已经被占用
         if (isOccupied)
         {
             Debug.Log("Already occupied");
@@ -22,18 +44,18 @@ public class MapCell : MonoBehaviour
         Card card = GameManager.Instance.pendingCard;
         Sprite sprite = GameManager.Instance.pendingSprite;
 
-        // 没有准备卡牌
+        // 没选卡牌
         if (card == null || sprite == null)
         {
             Debug.Log("No card selected to place!");
             return;
         }
 
-        // 放置卡牌
+        // ✅ 放置卡牌
         GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, transform);
         cardGO.GetComponent<CardDisplay>().Init(card, sprite);
 
-        // 让卡牌填满格子
+        // 填满整个格子
         RectTransform rt = cardGO.GetComponent<RectTransform>();
         rt.anchorMin = Vector2.zero;
         rt.anchorMax = Vector2.one;
@@ -42,10 +64,10 @@ public class MapCell : MonoBehaviour
 
         isOccupied = true;
 
-        // 清除准备状态
+        // ✅ 清空准备卡牌
         GameManager.Instance.ClearPendingCard();
 
-        // 删除手牌区中已选中的卡牌
+        // ✅ 删除手牌区中被选中的卡牌
         CardDisplay[] handCards = GameManager.Instance.cardParent.GetComponentsInChildren<CardDisplay>();
         foreach (CardDisplay cardInHand in handCards)
         {
