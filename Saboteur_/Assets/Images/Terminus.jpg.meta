@@ -3,8 +3,8 @@ guid: e8a76e21b441b4337b854efe8da1c7a6
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 199126517360535052
-    second: WeChat8eb6dbb7caf431b6598fdb0194deeb64_0
+      213: 2201849350083988298
+    second: Terminus_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,12 +126,12 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: WeChat8eb6dbb7caf431b6598fdb0194deeb64_0
+      name: Terminus_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 674
+        width: 675
         height: 1000
       alignment: 0
       pivot: {x: 0, y: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: c06a2a4338073c200800000000000000
-      internalID: 199126517360535052
+      spriteID: a4b4ea8615a8e8e10800000000000000
+      internalID: 2201849350083988298
       vertices: []
       indices: 
       edges: []
@@ -160,8 +160,7 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable:
-      WeChat8eb6dbb7caf431b6598fdb0194deeb64_0: 199126517360535052
+    nameFileIdTable: {}
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

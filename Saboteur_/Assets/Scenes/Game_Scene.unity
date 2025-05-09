@@ -170,7 +170,9 @@ MonoBehaviour:
   mapCellPrefab: {fileID: 2304371319932448159, guid: 350b62ee8b19742a691f8a6539915b87, type: 3}
   mapParent: {fileID: 413384333}
   rows: 5
-  cols: 9
+  cols: 10
+  originSprite: {fileID: 6493824449172928165, guid: 8b5b5bed001134b20ad1fb652321c63d, type: 3}
+  terminusSprite: {fileID: 2201849350083988298, guid: e8a76e21b441b4337b854efe8da1c7a6, type: 3}
 --- !u!1 &259952295
 GameObject:
   m_ObjectHideFlags: 0
@@ -224,10 +226,23 @@ MonoBehaviour:
   cardPrefab: {fileID: 2006592681289327055, guid: ea693182216fd42649c86aae4e7eeb5a, type: 3}
   cardParent: {fileID: 454913314}
   mapParent: {fileID: 413384333}
-  cardSprites:
-  - {fileID: -7865872258805556190, guid: 7f030cd492e424ee5a2cee45dcab86cb, type: 3}
-  - {fileID: 8608076840918478593, guid: 2a0371b78e127488c875b39395472410, type: 3}
-  - {fileID: -3491700977028088609, guid: c57c109e2723d48d0acd484baa3fce94, type: 3}
+  mapGenerator: {fileID: 188705016}
+  crossSprites:
+  - {fileID: -3445802474553609618, guid: bbb92afb435ff4dadab75f7fe8b3e5e5, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  ulrSprites: []
+  dlrSprites: []
+  udlSprites: []
+  udrSprites: []
+  verticalSprites: []
+  horizontalSprites: []
+  ulSprites: []
+  urSprites: []
+  dlSprites: []
+  drSprites: []
   pendingCard:
     up: 0
     down: 0
@@ -235,6 +250,7 @@ MonoBehaviour:
     right: 0
     cardName: 
   pendingSprite: {fileID: 0}
+  cardDeck: []
   playerID: 1
 --- !u!1 &331926352
 GameObject:
@@ -335,7 +351,7 @@ MonoBehaviour:
   m_CellSize: {x: 10, y: 14}
   m_Spacing: {x: 1, y: 1}
   m_Constraint: 1
-  m_ConstraintCount: 9
+  m_ConstraintCount: 10
 --- !u!114 &413384335
 MonoBehaviour:
   m_ObjectHideFlags: 0
