@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 public class MapCell : MonoBehaviour
 {
@@ -9,7 +10,7 @@ public class MapCell : MonoBehaviour
 
     private Image image;
 
-    void Awake()
+    private void Awake()
     {
         image = GetComponent<Image>();
     }
@@ -23,33 +24,22 @@ public class MapCell : MonoBehaviour
 
     public void OnClick()
     {
-        if (isBlocked)
-        {
-            Debug.Log("This cell is blocked and cannot be used.");
+        if (isBlocked || isOccupied)
             return;
-        }
-
-        if (isOccupied)
-        {
-            Debug.Log("This cell is already occupied.");
-            return;
-        }
 
         Card card = GameManager.Instance.pendingCard;
         Sprite sprite = GameManager.Instance.pendingSprite;
 
         if (card == null || sprite == null)
         {
-            Debug.Log("No card is selected for placement.");
+            Debug.LogWarning("No card selected");
             return;
         }
 
-        //  检查是否能连接到邻居
         bool canConnect = false;
-        MapCell[,] map = GameManager.Instance.mapGenerator.mapCells;
-        int maxRow = map.GetLength(0);
-        int maxCol = map.GetLength(1);
+        var map = GameManager.Instance.mapGenerator.mapCells;
 
+        // 检查上下左右四个方向是否有连通
         if (row > 0)
         {
             MapCell neighbor = map[row - 1, col];
@@ -57,15 +47,13 @@ public class MapCell : MonoBehaviour
             if (neighborCard != null && card.up && neighborCard.down)
                 canConnect = true;
         }
-
-        if (row < maxRow - 1)
+        if (row < map.GetLength(0) - 1)
         {
             MapCell neighbor = map[row + 1, col];
             Card neighborCard = neighbor.GetCard();
             if (neighborCard != null && card.down && neighborCard.up)
                 canConnect = true;
         }
-
         if (col > 0)
         {
             MapCell neighbor = map[row, col - 1];
@@ -73,8 +61,7 @@ public class MapCell : MonoBehaviour
             if (neighborCard != null && card.left && neighborCard.right)
                 canConnect = true;
         }
-
-        if (col < maxCol - 1)
+        if (col < map.GetLength(1) - 1)
         {
             MapCell neighbor = map[row, col + 1];
             Card neighborCard = neighbor.GetCard();
@@ -84,11 +71,11 @@ public class MapCell : MonoBehaviour
 
         if (!canConnect)
         {
-            Debug.LogWarning("Invalid placement: This card cannot connect to any neighboring card.");
+            Debug.LogWarning("Card cannot connect to any neighbors.");
             return;
         }
 
-        // ✅ 放置卡牌到地图格
+        // ✅ 放置卡牌到当前格子
         GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, transform);
         cardGO.GetComponent<CardDisplay>().Init(card, sprite);
 
@@ -100,93 +87,88 @@ public class MapCell : MonoBehaviour
 
         isOccupied = true;
 
+        // ✅ 替换当前玩家手牌中的已出卡牌
+        var currentPlayer = GameManager.Instance.playerGenerator.allPlayers[GameManager.Instance.playerID - 1];
+        int replacedIndex = GameManager.Instance.pendingCardIndex;
+
+        if (replacedIndex >= 0 && replacedIndex < currentPlayer.CardSlots.Length)
+        {
+            if (GameManager.Instance.cardDeck.Count > 0)
+            {
+                // 从牌堆抽一张替换
+                currentPlayer.CardSlots[replacedIndex] = GameManager.Instance.cardDeck[0];
+                GameManager.Instance.cardDeck.RemoveAt(0);
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ 卡组为空，无法补牌，保留空位或原卡不变");
+                // 不修改此位卡牌，保留为空或原状态（你也可以设为 null）
+                currentPlayer.CardSlots[replacedIndex] = null;
+            }
+        }
+        else
+        {
+            Debug.LogError("❌ 替换失败：pendingCardIndex 超出范围！");
+        }
+
+        // ✅ 清除选中卡
         GameManager.Instance.ClearPendingCard();
 
-        // 获取手牌中被选中的那一张
-        CardDisplay selectedCard = null;
-        CardDisplay[] handCards = GameManager.Instance.cardParent.GetComponentsInChildren<CardDisplay>();
-        foreach (CardDisplay cardInHand in handCards)
-        {
-            if (cardInHand.isSelected)
-            {
-                selectedCard = cardInHand;
-                break;
-            }
-        }
+        // ✅ 检查胜利条件
+        PathChecker checker = Object.FindFirstObjectByType<PathChecker>();
+        checker?.CheckWinCondition();
 
-        if (selectedCard != null)
-        {
-            // 立即销毁卡牌，确保 UI 减一张
-            DestroyImmediate(selectedCard.gameObject);
-
-            // 再判断并补一张牌
-            int currentHandCount = GameManager.Instance.cardParent.childCount;
-            if (currentHandCount < 5)
-            {
-                GameManager.Instance.DrawCard();
-            }
-        }
-
+        // ✅ 进入下一回合
         TurnManager.Instance.NextTurn();
-        PathChecker checker = UnityEngine.Object.FindFirstObjectByType<PathChecker>();
-        if (checker != null)
-        {
-            checker.CheckWinCondition();
-        }
 
-        // Debug：检测是否连接成功
-        bool connected = IsConnectedToNeighbor();
-        Debug.Log($"Connected to neighbor: {connected}");
+        // ✅ 调试输出
+        Debug.Log($"🟢 玩家 {GameManager.Instance.playerID} 当前手牌数：{currentPlayer.CardSlots.Length}");
+        Debug.Log($"🃏 当前卡组剩余：{GameManager.Instance.cardDeck.Count}");
+        for (int i = 0; i < currentPlayer.CardSlots.Length; i++)
+        {
+            Debug.Log($"➡️ 手牌{i + 1}：{currentPlayer.CardSlots[i]?.cardName ?? "空"}");
+        }
     }
 
     public Card GetCard()
     {
-        return GetComponentInChildren<CardDisplay>()?.cardData;
+        var display = GetComponentInChildren<CardDisplay>();
+        return display != null ? display.cardData : null;
     }
 
     public bool IsConnectedToNeighbor()
     {
-        Card currentCard = GetCard();
-        if (currentCard == null) return false;
+        Card card = GetCard();
+        if (card == null)
+            return false;
 
-        MapCell[,] map = GameManager.Instance.mapGenerator.mapCells;
-        int maxRow = map.GetLength(0);
-        int maxCol = map.GetLength(1);
-
-        bool connected = false;
+        var map = GameManager.Instance.mapGenerator.mapCells;
 
         if (row > 0)
         {
-            MapCell neighbor = map[row - 1, col];
-            Card neighborCard = neighbor.GetCard();
-            if (neighborCard != null && currentCard.up && neighborCard.down)
-                connected = true;
+            Card neighbor = map[row - 1, col].GetCard();
+            if (neighbor != null && card.up && neighbor.down)
+                return true;
         }
-
-        if (row < maxRow - 1)
+        if (row < map.GetLength(0) - 1)
         {
-            MapCell neighbor = map[row + 1, col];
-            Card neighborCard = neighbor.GetCard();
-            if (neighborCard != null && currentCard.down && neighborCard.up)
-                connected = true;
+            Card neighbor = map[row + 1, col].GetCard();
+            if (neighbor != null && card.down && neighbor.up)
+                return true;
         }
-
         if (col > 0)
         {
-            MapCell neighbor = map[row, col - 1];
-            Card neighborCard = neighbor.GetCard();
-            if (neighborCard != null && currentCard.left && neighborCard.right)
-                connected = true;
+            Card neighbor = map[row, col - 1].GetCard();
+            if (neighbor != null && card.left && neighbor.right)
+                return true;
         }
-
-        if (col < maxCol - 1)
+        if (col < map.GetLength(1) - 1)
         {
-            MapCell neighbor = map[row, col + 1];
-            Card neighborCard = neighbor.GetCard();
-            if (neighborCard != null && currentCard.right && neighborCard.left)
-                connected = true;
+            Card neighbor = map[row, col + 1].GetCard();
+            if (neighbor != null && card.right && neighbor.left)
+                return true;
         }
 
-        return connected;
+        return false;
     }
 }

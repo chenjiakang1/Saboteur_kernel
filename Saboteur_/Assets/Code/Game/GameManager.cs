@@ -7,37 +7,37 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
+    [Header("玩家控制")]
+    public int playerID = 1;
     public TextMeshProUGUI localPlayerText;
     public Button actionButton;
+
+    [Header("卡牌展示")]
     public GameObject cardPrefab;
     public Transform cardParent;
+
+    [Header("地图与生成器")]
     public Transform mapParent;
     public MapGenerator mapGenerator;
+    public PlayerGenerator playerGenerator;
 
-    [Header("四通卡")]
+    [Header("玩家 UI 控制器")]
+    public PlayerUIManager playerUIManager;  // ✅ 新增：玩家 UI 控制器（脚本）
+
+    [Header("卡牌资源")]
     public List<Sprite> crossSprites;
-    [Header("三通卡 - 上 左 右")]
     public List<Sprite> ulrSprites;
-    [Header("三通卡 - 下 左 右")]
     public List<Sprite> dlrSprites;
-    [Header("三通卡 - 上 下 左")]
     public List<Sprite> udlSprites;
-    [Header("三通卡 - 上 下 右")]
     public List<Sprite> udrSprites;
-    [Header("两通卡 - 上 下")]
     public List<Sprite> verticalSprites;
-    [Header("两通卡 - 左 右")]
     public List<Sprite> horizontalSprites;
-    [Header("两通卡 - 上 左")]
     public List<Sprite> ulSprites;
-    [Header("两通卡 - 上 右")]
     public List<Sprite> urSprites;
-    [Header("两通卡 - 下 左")]
     public List<Sprite> dlSprites;
-    [Header("两通卡 - 下 右")]
     public List<Sprite> drSprites;
 
-    [Header("9张阻断卡牌图像（请按顺序拖入）")]
+    [Header("9张阻断卡牌图像")]
     public Sprite blockedSprite_L;
     public Sprite blockedSprite_D;
     public Sprite blockedSprite_LR;
@@ -54,9 +54,9 @@ public class GameManager : MonoBehaviour
     [HideInInspector] public Sprite pendingSprite;
 
     public List<Card> cardDeck = new List<Card>();
-    private int drawIndex = 0;
 
-    public int playerID = 1;
+    [HideInInspector] public int pendingCardIndex = -1;
+
 
     void Awake()
     {
@@ -66,20 +66,24 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         localPlayerText.text = "Local Player " + playerID;
+
         if (actionButton != null)
-            actionButton.onClick.AddListener(SwitchPlayerID);
+            //actionButton.onClick.AddListener(SwitchPlayerID);
 
         InitCardSpriteMap();
         InitCardDeck();
-        CreateCardHand();
+
+        playerGenerator.GeneratePlayers(cardDeck);
+
+        TurnManager.Instance.totalPlayers = playerGenerator.allPlayers.Count;
+
+
+        ShowPlayerHand(playerID - 1);
+
+        // ✅ 使用外部 UI 控制器生成 UI
+        playerUIManager.GenerateUI(playerGenerator.allPlayers);
     }
 
-    void SwitchPlayerID()
-    {
-        playerID = (playerID == 1) ? 2 : 1;
-        Debug.Log("Switched to Player " + playerID);
-        localPlayerText.text = "Local Player " + playerID;
-    }
 
     void InitCardSpriteMap()
     {
@@ -133,16 +137,16 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // ✅ 添加 9 张阻断卡（方向真实）
-        cardDeck.Add(CreateBlockedCard(false, false, true, false, "BLOCK_L", blockedSprite_L));        // 左通
-        cardDeck.Add(CreateBlockedCard(false, true, false, false, "BLOCK_D", blockedSprite_D));        // 下通
-        cardDeck.Add(CreateBlockedCard(false, false, true, true, "BLOCK_LR", blockedSprite_LR));       // 左右通
-        cardDeck.Add(CreateBlockedCard(false, true, true, false, "BLOCK_LD", blockedSprite_LD));       // 左下通
-        cardDeck.Add(CreateBlockedCard(true, true, false, false, "BLOCK_UD", blockedSprite_UD));       // 上下通
-        cardDeck.Add(CreateBlockedCard(false, true, false, true, "BLOCK_DR", blockedSprite_DR));       // 下右通
-        cardDeck.Add(CreateBlockedCard(true, false, true, true, "BLOCK_ULR", blockedSprite_ULR));      // 上左右通
-        cardDeck.Add(CreateBlockedCard(true, true, true, false, "BLOCK_ULD", blockedSprite_ULD));      // 上下左通
-        cardDeck.Add(CreateBlockedCard(true, true, true, true, "BLOCK_UDLR", blockedSprite_UDLR)); // 全封闭
+        // 添加阻断卡
+        cardDeck.Add(CreateBlockedCard(false, false, true, false, "BLOCK_L", blockedSprite_L));
+        cardDeck.Add(CreateBlockedCard(false, true, false, false, "BLOCK_D", blockedSprite_D));
+        cardDeck.Add(CreateBlockedCard(false, false, true, true, "BLOCK_LR", blockedSprite_LR));
+        cardDeck.Add(CreateBlockedCard(false, true, true, false, "BLOCK_LD", blockedSprite_LD));
+        cardDeck.Add(CreateBlockedCard(true, true, false, false, "BLOCK_UD", blockedSprite_UD));
+        cardDeck.Add(CreateBlockedCard(false, true, false, true, "BLOCK_DR", blockedSprite_DR));
+        cardDeck.Add(CreateBlockedCard(true, false, true, true, "BLOCK_ULR", blockedSprite_ULR));
+        cardDeck.Add(CreateBlockedCard(true, true, true, false, "BLOCK_ULD", blockedSprite_ULD));
+        cardDeck.Add(CreateBlockedCard(true, true, true, true, "BLOCK_UDLR", blockedSprite_UDLR));
 
         ShuffleDeck();
     }
@@ -152,7 +156,7 @@ public class GameManager : MonoBehaviour
         Card card = new Card(u, d, l, r, name);
         card.sprite = sprite;
         card.blockedCenter = true;
-        card.isPathPassable = false; // ✅ 阻断卡不可通
+        card.isPathPassable = false;
         return card;
     }
 
@@ -165,48 +169,61 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    void CreateCardHand()
+    public void ShowPlayerHand(int index)
     {
-        for (int i = 0; i < 5; i++)
+        foreach (Transform child in cardParent)
         {
-            DrawCard();
+            Destroy(child.gameObject);
+        }
+
+        var player = playerGenerator.allPlayers[index];
+        var hand = player.CardSlots;
+
+        for (int i = 0; i < hand.Length; i++)
+        {
+            GameObject cardGO = Instantiate(cardPrefab, cardParent);
+            var display = cardGO.GetComponent<CardDisplay>();
+
+            if (hand[i] != null)
+            {
+                display.Init(hand[i], hand[i].sprite);
+            }
+            else
+            {
+                display.Init(null, null); // 防止为null时报错
+            }
+
+            display.cardIndex = i;
         }
     }
 
-    public void DrawCard()
+    public Card DrawCard()
     {
-        if (drawIndex >= cardDeck.Count)
+        if (cardDeck.Count == 0)
         {
-            Debug.Log("Deck is empty!");
-            return;
+            Debug.LogWarning("卡组已空，无法抽牌");
+            return null;
         }
 
-        int currentHandCount = cardParent.GetComponentsInChildren<CardDisplay>().Length;
-        if (currentHandCount >= 5)
-        {
-            Debug.Log("Hand is full, cannot draw more.");
-            return;
-        }
-
-        Card card = cardDeck[drawIndex];
-        drawIndex++;
-
-        GameObject cardGO = Instantiate(cardPrefab, cardParent);
-        CardDisplay display = cardGO.GetComponent<CardDisplay>();
-        display.Init(card, card.sprite);
+        Card card = cardDeck[0];
+        cardDeck.RemoveAt(0);
+        return card;
     }
 
-    public void SetPendingCard(Card card, Sprite sprite)
+
+
+
+    public void SetPendingCard(Card card, Sprite sprite, int cardIndex)
     {
         pendingCard = card;
         pendingSprite = sprite;
+        pendingCardIndex = cardIndex;
     }
+
 
     public void ClearPendingCard()
     {
         pendingCard = null;
         pendingSprite = null;
     }
-
-   
 }

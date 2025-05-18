@@ -8,17 +8,21 @@ public class CardDisplay : MonoBehaviour
 
     public bool isSelected = false;
 
+    public int cardIndex;
+
     // 初始化卡牌数据
     public void Init(Card data, Sprite sprite = null)
     {
         cardData = data;
 
-        // 从 cardData 读取 sprite，如果没传就默认
-        if (cardData.sprite != null)
+        if (cardData != null && cardData.sprite != null)
             image.sprite = cardData.sprite;
         else if (sprite != null)
             image.sprite = sprite;
+        else
+            image.sprite = null;
     }
+
 
     public void OnClick()
     {
@@ -40,7 +44,7 @@ public class CardDisplay : MonoBehaviour
         // ✅ 显示调试信息（名称 + 通路）
         Debug.Log("Selected Card to Place: " + cardData.cardName + " | " + cardData);
 
-        GameManager.Instance.SetPendingCard(cardData, image.sprite);
+        GameManager.Instance.SetPendingCard(cardData, image.sprite, cardIndex);
         isSelected = true;
 
         // 清除其他选中卡
