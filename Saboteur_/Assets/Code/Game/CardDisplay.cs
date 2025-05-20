@@ -26,28 +26,24 @@ public class CardDisplay : MonoBehaviour
 
     public void OnClick()
     {
-        //  禁止非当前玩家操作
+        //  判断是否是当前回合的玩家
         if (GameManager.Instance.playerID != TurnManager.Instance.currentPlayer)
         {
-            Debug.Log("Not your turn!");
+            Debug.LogWarning("⛔ 不是你的回合，不能出牌！");
             return;
         }
 
         if (isSelected)
         {
-            Debug.Log("Card deselected.");
             isSelected = false;
             GameManager.Instance.ClearPendingCard();
             return;
         }
 
-        // ✅ 显示调试信息（名称 + 通路）
-        Debug.Log("Selected Card to Place: " + cardData.cardName + " | " + cardData);
-
         GameManager.Instance.SetPendingCard(cardData, image.sprite, cardIndex);
         isSelected = true;
 
-        // 清除其他选中卡
+        // 清除其他卡选中状态
         CardDisplay[] handCards = transform.parent.GetComponentsInChildren<CardDisplay>();
         foreach (CardDisplay card in handCards)
         {
@@ -57,4 +53,5 @@ public class CardDisplay : MonoBehaviour
             }
         }
     }
+
 }

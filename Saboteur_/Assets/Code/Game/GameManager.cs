@@ -106,19 +106,19 @@ public class GameManager : MonoBehaviour
         cardDeck.Clear();
 
         Dictionary<string, Card> cardTypeMap = new()
-        {
-            { "Cross",      new Card(true, true, true, true, "Cross") },
-            { "ULR",        new Card(true, false, true, true, "ULR") },
-            { "DLR",        new Card(false, true, true, true, "DLR") },
-            { "UDL",        new Card(true, true, true, false, "UDL") },
-            { "UDR",        new Card(true, true, false, true, "UDR") },
-            { "Vertical",   new Card(true, true, false, false, "Vertical") },
-            { "Horizontal", new Card(false, false, true, true, "Horizontal") },
-            { "UL",         new Card(true, false, true, false, "UL") },
-            { "UR",         new Card(true, false, false, true, "UR") },
-            { "DL",         new Card(false, true, true, false, "DL") },
-            { "DR",         new Card(false, true, false, true, "DR") }
-        };
+    {
+        { "Cross",      new Card(true, true, true, true, "Cross") },
+        { "ULR",        new Card(true, false, true, true, "ULR") },
+        { "DLR",        new Card(false, true, true, true, "DLR") },
+        { "UDL",        new Card(true, true, true, false, "UDL") },
+        { "UDR",        new Card(true, true, false, true, "UDR") },
+        { "Vertical",   new Card(true, true, false, false, "Vertical") },
+        { "Horizontal", new Card(false, false, true, true, "Horizontal") },
+        { "UL",         new Card(true, false, true, false, "UL") },
+        { "UR",         new Card(true, false, false, true, "UR") },
+        { "DL",         new Card(false, true, true, false, "DL") },
+        { "DR",         new Card(false, true, false, true, "DR") }
+    };
 
         foreach (var pair in cardTypeToSprites)
         {
@@ -133,6 +133,7 @@ public class GameManager : MonoBehaviour
                 Card newCard = new Card(baseCard.up, baseCard.down, baseCard.left, baseCard.right, cardName);
                 newCard.sprite = sprite;
                 newCard.blockedCenter = false;
+                newCard.isPathPassable = true;
                 cardDeck.Add(newCard);
             }
         }
@@ -148,8 +149,19 @@ public class GameManager : MonoBehaviour
         cardDeck.Add(CreateBlockedCard(true, true, true, false, "BLOCK_ULD", blockedSprite_ULD));
         cardDeck.Add(CreateBlockedCard(true, true, true, true, "BLOCK_UDLR", blockedSprite_UDLR));
 
+        // ✅ 强制检查所有阻断卡再次设置字段
+        foreach (var card in cardDeck)
+        {
+            if (card.cardName.StartsWith("BLOCK"))
+            {
+                card.blockedCenter = true;
+                card.isPathPassable = false;
+            }
+        }
+
         ShuffleDeck();
     }
+
 
     Card CreateBlockedCard(bool u, bool d, bool l, bool r, string name, Sprite sprite)
     {
@@ -171,6 +183,7 @@ public class GameManager : MonoBehaviour
 
     public void ShowPlayerHand(int index)
     {
+        // 清除旧的卡牌显示
         foreach (Transform child in cardParent)
         {
             Destroy(child.gameObject);
@@ -181,21 +194,19 @@ public class GameManager : MonoBehaviour
 
         for (int i = 0; i < hand.Length; i++)
         {
+            if (hand[i] == null)
+            {
+                Debug.Log($"🟥 手牌{i + 1}为空，不显示");
+                continue; // 不实例化 GameObject
+            }
+
             GameObject cardGO = Instantiate(cardPrefab, cardParent);
             var display = cardGO.GetComponent<CardDisplay>();
-
-            if (hand[i] != null)
-            {
-                display.Init(hand[i], hand[i].sprite);
-            }
-            else
-            {
-                display.Init(null, null); // 防止为null时报错
-            }
-
+            display.Init(hand[i], hand[i].sprite);
             display.cardIndex = i;
         }
     }
+
 
     public Card DrawCard()
     {

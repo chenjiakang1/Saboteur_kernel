@@ -35,7 +35,7 @@ public class TurnManager : MonoBehaviour
 
     void UpdateTurnUI()
     {
-        // 更新 UI 文本显示
+        // 显示当前玩家
         if (turnText != null)
             turnText.text = "Player " + currentPlayer + "'s Turn";
 
@@ -45,7 +45,12 @@ public class TurnManager : MonoBehaviour
         if (localPlayerText != null)
             localPlayerText.text = "Local Player " + currentPlayer;
 
-        // 显示该玩家手牌
+        // ✅ 显示该玩家手牌
         GameManager.Instance.ShowPlayerHand(currentPlayer - 1);
+
+        // ✅ 如果你有玩家 UI（头像、积分）等，也可在此刷新
+        // GameManager.Instance.playerUIManager.UpdateActivePlayer(currentPlayer);
     }
+
+
 }

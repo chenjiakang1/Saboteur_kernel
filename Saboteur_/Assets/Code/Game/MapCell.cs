@@ -108,11 +108,15 @@ public class MapCell : MonoBehaviour
         }
         else
         {
-            Debug.LogError("❌ 替换失败：pendingCardIndex 超出范围！");
+            Debug.LogError(" 替换失败：pendingCardIndex 超出范围！");
         }
 
         // ✅ 清除选中卡
         GameManager.Instance.ClearPendingCard();
+
+        // ✅ 输出玩家放置信息
+        var playerID = GameManager.Instance.playerID;
+        Debug.Log($"🧩 玩家 {playerID} 放置了卡牌 [{card.cardName}] 于格子 ({row}, {col})");
 
         // ✅ 检查胜利条件
         PathChecker checker = Object.FindFirstObjectByType<PathChecker>();
@@ -128,6 +132,8 @@ public class MapCell : MonoBehaviour
         {
             Debug.Log($"➡️ 手牌{i + 1}：{currentPlayer.CardSlots[i]?.cardName ?? "空"}");
         }
+
+        RevealNeighbors(row, col);
     }
 
     public Card GetCard()
@@ -171,4 +177,26 @@ public class MapCell : MonoBehaviour
 
         return false;
     }
+
+    private void RevealNeighbors(int r, int c)
+    {
+        var map = GameManager.Instance.mapGenerator.mapCells;
+        int rows = map.GetLength(0);
+        int cols = map.GetLength(1);
+
+        void TryReveal(int rr, int cc)
+        {
+            if (rr >= 0 && rr < rows && cc >= 0 && cc < cols)
+            {
+                var cell = map[rr, cc];
+                cell.GetComponent<Image>().enabled = true;
+            }
+        }
+
+        TryReveal(r - 1, c); // 上
+        TryReveal(r + 1, c); // 下
+        TryReveal(r, c - 1); // 左
+        TryReveal(r, c + 1); // 右
+    }
+
 }

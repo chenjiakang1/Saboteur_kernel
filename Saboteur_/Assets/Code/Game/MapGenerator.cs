@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class MapGenerator : MonoBehaviour
 {
@@ -32,14 +33,19 @@ public class MapGenerator : MonoBehaviour
                 cell.col = c;
                 mapCells[r, c] = cell;
 
-                // ✅ 设置起点：第3行第2列 (2,1)
+                // 默认隐藏格子的 Image
+                cell.GetComponent<Image>().enabled = false;
+
+                // ✅ 设置起点 (2,1)
                 if (r == 2 && c == 1)
                 {
+                    cell.GetComponent<Image>().enabled = true;
+
                     cell.SetBlocked(originSprite);
 
                     Card originCard = new Card(true, true, true, true, "Origin");
                     originCard.sprite = originSprite;
-                    originCard.isPathPassable = true; // ✅ 可通
+                    originCard.isPathPassable = true;
 
                     GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform);
                     cardGO.GetComponent<CardDisplay>().Init(originCard, originSprite);
@@ -53,14 +59,22 @@ public class MapGenerator : MonoBehaviour
                     cell.isOccupied = true;
                 }
 
-                // ✅ 设置终点：第1/3/5行第10列 (0,9),(2,9),(4,9)
+                // ✅ 起点的上下左右格子也可见
+                if ((r == 1 && c == 1) || (r == 3 && c == 1) || (r == 2 && c == 0) || (r == 2 && c == 2))
+                {
+                    cell.GetComponent<Image>().enabled = true;
+                }
+
+                // ✅ 设置终点 (0,9), (2,9), (4,9)
                 if (c == 9 && (r == 0 || r == 2 || r == 4))
                 {
+                    cell.GetComponent<Image>().enabled = true;
+
                     cell.SetBlocked(terminusSprite);
 
                     Card terminalCard = new Card(true, true, true, true, "Terminal");
                     terminalCard.sprite = terminusSprite;
-                    terminalCard.isPathPassable = true; // ✅ 可通
+                    terminalCard.isPathPassable = true;
 
                     GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform);
                     cardGO.GetComponent<CardDisplay>().Init(terminalCard, terminusSprite);
