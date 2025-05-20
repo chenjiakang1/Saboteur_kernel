@@ -1,3 +1,4 @@
+// ✅ 完整 GameManager.cs（支持胜利与失败判定）
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -8,8 +9,8 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance;
 
     [Header("玩家控制")]
-    public int playerID = 1;         // 当前出牌玩家（固定由 TurnManager 控制）
-    public int viewPlayerID = 1;     // 当前观察的玩家（点击按钮切换）
+    public int playerID = 1;
+    public int viewPlayerID = 1;
     public TextMeshProUGUI localPlayerText;
     public Button actionButton;
 
@@ -26,45 +27,60 @@ public class GameManager : MonoBehaviour
     public PlayerUIManager playerUIManager;
 
     [Header("卡牌资源")]
-    public List<Sprite> crossSprites, ulrSprites, dlrSprites, udlSprites, udrSprites;
-    public List<Sprite> verticalSprites, horizontalSprites;
-    public List<Sprite> ulSprites, urSprites, dlSprites, drSprites;
-    public Sprite blockedSprite_L, blockedSprite_D, blockedSprite_LR, blockedSprite_LD;
-    public Sprite blockedSprite_UD, blockedSprite_DR, blockedSprite_ULR, blockedSprite_ULD, blockedSprite_UDLR;
+    public List<Sprite> crossSprites;
+    public List<Sprite> ulrSprites;
+    public List<Sprite> dlrSprites;
+    public List<Sprite> udlSprites;
+    public List<Sprite> udrSprites;
+    public List<Sprite> verticalSprites;
+    public List<Sprite> horizontalSprites;
+    public List<Sprite> ulSprites;
+    public List<Sprite> urSprites;
+    public List<Sprite> dlSprites;
+    public List<Sprite> drSprites;
+
+    [Header("阻断卡牌图像")]
+    public Sprite blockedSprite_L;
+    public Sprite blockedSprite_D;
+    public Sprite blockedSprite_LR;
+    public Sprite blockedSprite_LD;
+    public Sprite blockedSprite_UD;
+    public Sprite blockedSprite_DR;
+    public Sprite blockedSprite_ULR;
+    public Sprite blockedSprite_ULD;
+    public Sprite blockedSprite_UDLR;
+
+    [Header("游戏结束 UI")]
+    public GameObject victoryPanel;      // 共用面板
+    public GameObject gameOverVictory;   // 胜利文本
+    public GameObject gameOverLose;      // 失败文本
+
+    [Header("提示文字")]
+    public GameObject endGameTip;        // 点击卡牌时的结束提示
 
     private Dictionary<string, List<Sprite>> cardTypeToSprites = new();
+
     [HideInInspector] public Card pendingCard;
     [HideInInspector] public Sprite pendingSprite;
     [HideInInspector] public int pendingCardIndex = -1;
-    public List<Card> cardDeck = new List<Card>();
 
-    void Awake() => Instance = this;
+    public List<Card> cardDeck = new List<Card>();
+    public int remainingCards = 0; // ✅ 剩余可抽牌数
+
+    public bool hasGameEnded = false;
+
+    void Awake() { Instance = this; }
 
     void Start()
     {
         playerID = 1;
         viewPlayerID = 1;
 
-        // ✅ 绑定按钮：只切换观察视角，不调用任何 UI 或回合逻辑
-        if (actionButton != null)
-        {
-            actionButton.onClick.RemoveAllListeners();
-            actionButton.onClick.AddListener(() =>
-            {
-                int next = viewPlayerID + 1;
-                if (next > TurnManager.Instance.totalPlayers)
-                    next = 1;
-
-                viewPlayerID = next;
-                if (localPlayerText != null)
-                    localPlayerText.text = "Local Player " + viewPlayerID;
-
-                ShowPlayerHand(viewPlayerID - 1);
-            });
-        }
-
         if (localPlayerText != null)
             localPlayerText.text = "Local Player " + viewPlayerID;
+
+        if (actionButton != null)
+            actionButton.onClick.AddListener(SwitchToNextViewPlayer);
 
         InitCardSpriteMap();
         InitCardDeck();
@@ -74,6 +90,18 @@ public class GameManager : MonoBehaviour
 
         ShowPlayerHand(viewPlayerID - 1);
         playerUIManager.GenerateUI(playerGenerator.allPlayers);
+    }
+
+    public void SwitchToNextViewPlayer()
+    {
+        viewPlayerID++;
+        if (viewPlayerID > TurnManager.Instance.totalPlayers)
+            viewPlayerID = 1;
+
+        if (localPlayerText != null)
+            localPlayerText.text = "Local Player " + viewPlayerID;
+
+        ShowPlayerHand(viewPlayerID - 1);
     }
 
     public void ShowPlayerHand(int index)
@@ -105,6 +133,13 @@ public class GameManager : MonoBehaviour
 
         Card card = cardDeck[0];
         cardDeck.RemoveAt(0);
+        remainingCards--;
+
+        if (remainingCards <= 0 && !hasGameEnded)
+        {
+            GameOver(false); // ✅ 卡牌用尽未胜利 → 游戏失败
+        }
+
         return card;
     }
 
@@ -119,6 +154,26 @@ public class GameManager : MonoBehaviour
     {
         pendingCard = null;
         pendingSprite = null;
+    }
+
+    public void GameOver(bool isVictory = true)
+    {
+        if (hasGameEnded) return;
+        hasGameEnded = true;
+
+        Debug.Log(isVictory ? "🎉 游戏胜利：找到金矿卡" : "💀 游戏失败：卡牌用尽未找到金矿");
+
+        if (actionButton != null)
+            actionButton.interactable = false;
+
+        if (victoryPanel != null)
+            victoryPanel.SetActive(true);
+
+        if (gameOverVictory != null)
+            gameOverVictory.SetActive(isVictory);
+
+        if (gameOverLose != null)
+            gameOverLose.SetActive(!isVictory);
     }
 
     void InitCardSpriteMap()
@@ -140,28 +195,29 @@ public class GameManager : MonoBehaviour
     {
         cardDeck.Clear();
 
-        Dictionary<string, Card> map = new()
+        Dictionary<string, Card> cardTypeMap = new()
         {
-            { "Cross", new Card(true, true, true, true, "Cross") },
-            { "ULR", new Card(true, false, true, true, "ULR") },
-            { "DLR", new Card(false, true, true, true, "DLR") },
-            { "UDL", new Card(true, true, true, false, "UDL") },
-            { "UDR", new Card(true, true, false, true, "UDR") },
-            { "Vertical", new Card(true, true, false, false, "Vertical") },
+            { "Cross",      new Card(true, true, true, true, "Cross") },
+            { "ULR",        new Card(true, false, true, true, "ULR") },
+            { "DLR",        new Card(false, true, true, true, "DLR") },
+            { "UDL",        new Card(true, true, true, false, "UDL") },
+            { "UDR",        new Card(true, true, false, true, "UDR") },
+            { "Vertical",   new Card(true, true, false, false, "Vertical") },
             { "Horizontal", new Card(false, false, true, true, "Horizontal") },
-            { "UL", new Card(true, false, true, false, "UL") },
-            { "UR", new Card(true, false, false, true, "UR") },
-            { "DL", new Card(false, true, true, false, "DL") },
-            { "DR", new Card(false, true, false, true, "DR") }
+            { "UL",         new Card(true, false, true, false, "UL") },
+            { "UR",         new Card(true, false, false, true, "UR") },
+            { "DL",         new Card(false, true, true, false, "DL") },
+            { "DR",         new Card(false, true, false, true, "DR") }
         };
 
-        foreach (var entry in cardTypeToSprites)
+        foreach (var pair in cardTypeToSprites)
         {
-            if (!map.ContainsKey(entry.Key)) continue;
-            foreach (var sprite in entry.Value)
+            if (!cardTypeMap.ContainsKey(pair.Key)) continue;
+
+            foreach (var sprite in pair.Value)
             {
-                var c = map[entry.Key];
-                var newCard = new Card(c.up, c.down, c.left, c.right, entry.Key);
+                Card baseCard = cardTypeMap[pair.Key];
+                Card newCard = new Card(baseCard.up, baseCard.down, baseCard.left, baseCard.right, pair.Key);
                 newCard.sprite = sprite;
                 newCard.blockedCenter = false;
                 newCard.isPathPassable = true;
@@ -169,12 +225,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        AddBlockedCards();
-        ShuffleDeck();
-    }
-
-    void AddBlockedCards()
-    {
+        // ✅ 阻断卡
         cardDeck.Add(CreateBlockedCard(false, false, true, false, "BLOCK_L", blockedSprite_L));
         cardDeck.Add(CreateBlockedCard(false, true, false, false, "BLOCK_D", blockedSprite_D));
         cardDeck.Add(CreateBlockedCard(false, false, true, true, "BLOCK_LR", blockedSprite_LR));
@@ -193,12 +244,17 @@ public class GameManager : MonoBehaviour
                 card.isPathPassable = false;
             }
         }
+
+        ShuffleDeck();
+        remainingCards = cardDeck.Count; // ✅ 初始化剩余卡牌数
     }
 
     Card CreateBlockedCard(bool u, bool d, bool l, bool r, string name, Sprite sprite)
     {
         Card card = new Card(u, d, l, r, name);
         card.sprite = sprite;
+        card.blockedCenter = true;
+        card.isPathPassable = false;
         return card;
     }
 

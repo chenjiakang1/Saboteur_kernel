@@ -10,6 +10,9 @@ public class MapCell : MonoBehaviour
 
     private Image image;
 
+    public Card card;
+    public CardDisplay cardDisplay;
+
     private void Awake()
     {
         image = GetComponent<Image>();
@@ -24,6 +27,14 @@ public class MapCell : MonoBehaviour
 
     public void OnClick()
     {
+        if (GameManager.Instance.hasGameEnded)
+        {
+            if (GameManager.Instance.endGameTip != null)
+                GameManager.Instance.endGameTip.SetActive(true);
+            Debug.Log("🛑 游戏结束，无法点击地图格子放牌");
+            return;
+        }
+
         if (GameManager.Instance.viewPlayerID != GameManager.Instance.playerID)
         {
             Debug.LogWarning("当前不是你的出牌回合，请勿操作卡牌。");
@@ -45,7 +56,7 @@ public class MapCell : MonoBehaviour
         bool canConnect = false;
         var map = GameManager.Instance.mapGenerator.mapCells;
 
-        // 检查上下左右四个方向是否有连通
+        // 检查邻接方向连通性
         if (row > 0)
         {
             MapCell neighbor = map[row - 1, col];
@@ -81,7 +92,7 @@ public class MapCell : MonoBehaviour
             return;
         }
 
-        // ✅ 放置卡牌到当前格子
+        // ✅ 放置卡牌
         GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, transform);
         cardGO.GetComponent<CardDisplay>().Init(card, sprite);
 
@@ -93,45 +104,30 @@ public class MapCell : MonoBehaviour
 
         isOccupied = true;
 
-        // ✅ 替换当前玩家手牌中的已出卡牌
+        // ✅ 替换当前玩家的手牌
         var currentPlayer = GameManager.Instance.playerGenerator.allPlayers[GameManager.Instance.playerID - 1];
         int replacedIndex = GameManager.Instance.pendingCardIndex;
 
         if (replacedIndex >= 0 && replacedIndex < currentPlayer.CardSlots.Length)
         {
-            if (GameManager.Instance.cardDeck.Count > 0)
-            {
-                // 从牌堆抽一张替换
-                currentPlayer.CardSlots[replacedIndex] = GameManager.Instance.cardDeck[0];
-                GameManager.Instance.cardDeck.RemoveAt(0);
-            }
-            else
-            {
-                Debug.LogWarning("⚠️ 卡组为空，无法补牌，保留空位或原卡不变");
-                // 不修改此位卡牌，保留为空或原状态（你也可以设为 null）
-                currentPlayer.CardSlots[replacedIndex] = null;
-            }
+            Card newCard = GameManager.Instance.DrawCard();
+            currentPlayer.CardSlots[replacedIndex] = newCard;
         }
         else
         {
-            Debug.LogError(" 替换失败：pendingCardIndex 超出范围！");
+            Debug.LogError("替换失败：pendingCardIndex 超出范围！");
         }
 
-        // ✅ 清除选中卡
+        // ✅ 清除选中状态
         GameManager.Instance.ClearPendingCard();
 
-        // ✅ 输出玩家放置信息
-        var playerID = GameManager.Instance.playerID;
-        Debug.Log($"🧩 玩家 {playerID} 放置了卡牌 [{card.cardName}] 于格子 ({row}, {col})");
+        Debug.Log($"🧩 玩家 {GameManager.Instance.playerID} 放置卡 [{card.cardName}] 于 ({row},{col})");
 
-        // ✅ 检查胜利条件
         PathChecker checker = Object.FindFirstObjectByType<PathChecker>();
         checker?.CheckWinCondition();
 
-        // ✅ 进入下一回合
         TurnManager.Instance.NextTurn();
 
-        // ✅ 调试输出
         Debug.Log($"🟢 玩家 {GameManager.Instance.playerID} 当前手牌数：{currentPlayer.CardSlots.Length}");
         Debug.Log($"🃏 当前卡组剩余：{GameManager.Instance.cardDeck.Count}");
         for (int i = 0; i < currentPlayer.CardSlots.Length; i++)
@@ -151,8 +147,7 @@ public class MapCell : MonoBehaviour
     public bool IsConnectedToNeighbor()
     {
         Card card = GetCard();
-        if (card == null)
-            return false;
+        if (card == null) return false;
 
         var map = GameManager.Instance.mapGenerator.mapCells;
 
@@ -205,4 +200,14 @@ public class MapCell : MonoBehaviour
         TryReveal(r, c + 1); // 右
     }
 
+    public void RevealTerminal(Sprite faceSprite)
+    {
+        if (card == null || cardDisplay == null)
+            return;
+
+        card.sprite = faceSprite;
+        cardDisplay.Init(card, faceSprite);
+
+        Debug.Log($"🎯 终点 ({row},{col}) 被翻开为：{faceSprite.name}");
+    }
 }

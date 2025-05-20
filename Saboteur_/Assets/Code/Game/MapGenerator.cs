@@ -1,5 +1,7 @@
+// ✅ 终点卡改为金矿+石头区分版本 MapGenerator.cs
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 public class MapGenerator : MonoBehaviour
 {
@@ -9,10 +11,14 @@ public class MapGenerator : MonoBehaviour
     public int cols = 10;
 
     public Sprite originSprite;
-    public Sprite terminusSprite;
+    public Sprite terminusBackSprite;
+    public Sprite goldSprite;                   // ✅ 单独的金矿卡
+    public List<Sprite> rockSprites;            // ✅ 石头卡列表
 
     [HideInInspector]
     public MapCell[,] mapCells;
+
+    private Dictionary<Vector2Int, bool> isGoldMap = new(); // ✅ 终点位置是否是金矿
 
     void Start()
     {
@@ -22,6 +28,22 @@ public class MapGenerator : MonoBehaviour
     public void GenerateMap()
     {
         mapCells = new MapCell[rows, cols];
+
+        Vector2Int[] terminalPositions = new Vector2Int[]
+        {
+            new Vector2Int(0, 9),
+            new Vector2Int(2, 9),
+            new Vector2Int(4, 9)
+        };
+
+        int goldIndex = Random.Range(0, 3);
+        Debug.Log($"🎯 金矿生成在终点位置 {terminalPositions[goldIndex]}");
+
+        for (int i = 0; i < terminalPositions.Length; i++)
+        {
+            Vector2Int pos = terminalPositions[i];
+            isGoldMap[pos] = (i == goldIndex); // ✅ 只有一个终点是真正的金矿
+        }
 
         for (int r = 0; r < rows; r++)
         {
@@ -33,14 +55,11 @@ public class MapGenerator : MonoBehaviour
                 cell.col = c;
                 mapCells[r, c] = cell;
 
-                // 默认隐藏格子的 Image
                 cell.GetComponent<Image>().enabled = false;
 
-                // ✅ 设置起点 (2,1)
                 if (r == 2 && c == 1)
                 {
                     cell.GetComponent<Image>().enabled = true;
-
                     cell.SetBlocked(originSprite);
 
                     Card originCard = new Card(true, true, true, true, "Origin");
@@ -48,46 +67,73 @@ public class MapGenerator : MonoBehaviour
                     originCard.isPathPassable = true;
 
                     GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform);
-                    cardGO.GetComponent<CardDisplay>().Init(originCard, originSprite);
+                    var display = cardGO.GetComponent<CardDisplay>();
+                    display.Init(originCard, originSprite);
 
-                    RectTransform rt = cardGO.GetComponent<RectTransform>();
-                    rt.anchorMin = Vector2.zero;
-                    rt.anchorMax = Vector2.one;
-                    rt.offsetMin = Vector2.zero;
-                    rt.offsetMax = Vector2.zero;
-
+                    cell.card = originCard;
+                    cell.cardDisplay = display;
                     cell.isOccupied = true;
                 }
 
-                // ✅ 起点的上下左右格子也可见
                 if ((r == 1 && c == 1) || (r == 3 && c == 1) || (r == 2 && c == 0) || (r == 2 && c == 2))
                 {
                     cell.GetComponent<Image>().enabled = true;
                 }
 
-                // ✅ 设置终点 (0,9), (2,9), (4,9)
-                if (c == 9 && (r == 0 || r == 2 || r == 4))
+                Vector2Int pos = new Vector2Int(r, c);
+                if (isGoldMap.ContainsKey(pos))
                 {
                     cell.GetComponent<Image>().enabled = true;
-
-                    cell.SetBlocked(terminusSprite);
+                    cell.SetBlocked(terminusBackSprite);
 
                     Card terminalCard = new Card(true, true, true, true, "Terminal");
-                    terminalCard.sprite = terminusSprite;
+                    terminalCard.sprite = terminusBackSprite;
                     terminalCard.isPathPassable = true;
 
                     GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform);
-                    cardGO.GetComponent<CardDisplay>().Init(terminalCard, terminusSprite);
+                    var display = cardGO.GetComponent<CardDisplay>();
+                    display.Init(terminalCard, terminusBackSprite);
 
-                    RectTransform rt = cardGO.GetComponent<RectTransform>();
-                    rt.anchorMin = Vector2.zero;
-                    rt.anchorMax = Vector2.one;
-                    rt.offsetMin = Vector2.zero;
-                    rt.offsetMax = Vector2.zero;
-
+                    cell.card = terminalCard;
+                    cell.cardDisplay = display;
                     cell.isOccupied = true;
                 }
             }
+        }
+    }
+
+    public void RevealTerminalAt(int row, int col)
+    {
+        Vector2Int pos = new Vector2Int(row, col);
+        if (!isGoldMap.ContainsKey(pos)) return;
+
+        var cell = mapCells[row, col];
+        if (cell == null) return;
+
+        if (isGoldMap[pos])
+        {
+            cell.RevealTerminal(goldSprite);
+
+            if (!GameManager.Instance.hasGameEnded)
+            {
+                GameManager.Instance.GameOver(); // ✅ 正确触发游戏胜利
+            }
+        }
+        else
+        {
+            int rockIndex = Random.Range(0, rockSprites.Count);
+            Sprite rockSprite = rockSprites[rockIndex];
+            cell.RevealTerminal(rockSprite);
+            Debug.Log($"🪨 翻开的是石头终点 ({row},{col})，游戏继续...");
+        }
+    }
+
+    void Shuffle(List<int> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
         }
     }
 }

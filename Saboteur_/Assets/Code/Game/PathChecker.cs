@@ -20,22 +20,26 @@ public class PathChecker : MonoBehaviour
             new Vector2Int(4, 9)
         };
 
+        bool anyVictory = false;
+
         foreach (var terminal in terminals)
         {
             int r = terminal.x;
             int c = terminal.y;
 
-            // 检查四周邻居是否可连通且能走到起点
-            if (CheckNeighborVictory(r - 1, c, "down")) return;
-            if (CheckNeighborVictory(r + 1, c, "up")) return;
-            if (CheckNeighborVictory(r, c - 1, "right")) return;
-            if (CheckNeighborVictory(r, c + 1, "left")) return;
+            if (CheckNeighborVictory(r - 1, c, r, c, "down")) anyVictory = true;
+            if (CheckNeighborVictory(r + 1, c, r, c, "up")) anyVictory = true;
+            if (CheckNeighborVictory(r, c - 1, r, c, "right")) anyVictory = true;
+            if (CheckNeighborVictory(r, c + 1, r, c, "left")) anyVictory = true;
         }
 
-        Debug.Log("❌ 还未满足胜利条件");
+        if (!anyVictory)
+        {
+            Debug.Log("❌ 还未满足任何终点胜利条件");
+        }
     }
 
-    private bool CheckNeighborVictory(int r, int c, string directionToTerminal)
+    private bool CheckNeighborVictory(int r, int c, int targetRow, int targetCol, string directionToTerminal)
     {
         if (r < 0 || r >= map.GetLength(0) || c < 0 || c >= map.GetLength(1))
             return false;
@@ -57,15 +61,17 @@ public class PathChecker : MonoBehaviour
 
         if (!connected) return false;
 
-        // ✅ 加入起点连通性检查
         if (!IsReachableFromStart(r, c))
         {
-            Debug.Log($"⛔ 卡牌 {card.cardName} 虽连接终点，但路径中断，不能胜利");
+            Debug.Log($"⛔ 卡牌 {card.cardName} 虽连接终点但不连通起点 ({r},{c})");
             return false;
         }
 
         int playerID = GameManager.Instance.playerID;
-        Debug.Log($"🎉 Victory! 玩家 {playerID} 放置的卡片触发胜利 → 卡牌：{card.cardName}，位置：({r},{c})");
+        Debug.Log($"🎉 玩家 {playerID} 成功连通终点 ({targetRow},{targetCol})，通过位置：({r},{c})");
+
+        // ✅ 使用终点真实位置，触发 RevealTerminalAt
+        GameManager.Instance.mapGenerator.RevealTerminalAt(targetRow, targetCol);
         return true;
     }
 
@@ -77,8 +83,7 @@ public class PathChecker : MonoBehaviour
 
     private bool DFS(int r, int c, int targetR, int targetC)
     {
-        if (r < 0 || r >= rows || c < 0 || c >= cols)
-            return false;
+        if (r < 0 || r >= rows || c < 0 || c >= cols) return false;
         if (visited[r, c]) return false;
         visited[r, c] = true;
 
@@ -89,10 +94,8 @@ public class PathChecker : MonoBehaviour
         if (current == null || current.blockedCenter || !current.isPathPassable)
             return false;
 
-        if (r == targetR && c == targetC)
-            return true;
+        if (r == targetR && c == targetC) return true;
 
-        // 四方向继续搜索（必须方向通）
         if (current.up && r > 0)
         {
             Card next = map[r - 1, c].GetCard();
