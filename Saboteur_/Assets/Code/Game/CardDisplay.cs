@@ -26,10 +26,10 @@ public class CardDisplay : MonoBehaviour
 
     public void OnClick()
     {
-        //  判断是否是当前回合的玩家
-        if (GameManager.Instance.playerID != TurnManager.Instance.currentPlayer)
+        // ✅ 严格限制：视角玩家必须是出牌玩家
+        if (GameManager.Instance.viewPlayerID != GameManager.Instance.playerID)
         {
-            Debug.LogWarning("⛔ 不是你的回合，不能出牌！");
+            Debug.LogWarning("⛔ 当前不是你的出牌视角，无法操作卡牌！");
             return;
         }
 

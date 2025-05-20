@@ -24,6 +24,12 @@ public class MapCell : MonoBehaviour
 
     public void OnClick()
     {
+        if (GameManager.Instance.viewPlayerID != GameManager.Instance.playerID)
+        {
+            Debug.LogWarning("当前不是你的出牌回合，请勿操作卡牌。");
+            return;
+        }
+
         if (isBlocked || isOccupied)
             return;
 

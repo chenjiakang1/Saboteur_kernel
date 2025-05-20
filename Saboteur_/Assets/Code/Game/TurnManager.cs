@@ -5,52 +5,35 @@ public class TurnManager : MonoBehaviour
 {
     public static TurnManager Instance;
 
-    [Header("当前玩家回合信息")]
-    public int currentPlayer = 1;            // 当前回合玩家编号，从 1 开始
-    public int totalPlayers = 2;             // 玩家总数（由 GameManager 设置）
+    public int currentPlayer = 1;
+    public int totalPlayers = 1;
 
-    [Header("UI 显示")]
-    public TextMeshProUGUI turnText;         // 显示当前回合玩家
-    public TextMeshProUGUI localPlayerText;  // 显示本地玩家ID（如有）
+    public TextMeshProUGUI turnText;
+    public TextMeshProUGUI localPlayerText;
 
-    private void Awake()
-    {
-        Instance = this;
-    }
+    private void Awake() => Instance = this;
 
-    private void Start()
-    {
-        UpdateTurnUI();
-    }
+    private void Start() => UpdateTurnUI();
 
     public void NextTurn()
     {
         currentPlayer++;
-
         if (currentPlayer > totalPlayers)
             currentPlayer = 1;
 
         UpdateTurnUI();
     }
 
-    void UpdateTurnUI()
+    public void UpdateTurnUI()
     {
-        // 显示当前玩家
         if (turnText != null)
             turnText.text = "Player " + currentPlayer + "'s Turn";
 
-        // 同步 GameManager 的 playerID
         GameManager.Instance.playerID = currentPlayer;
 
-        if (localPlayerText != null)
-            localPlayerText.text = "Local Player " + currentPlayer;
+        if (GameManager.Instance.localPlayerText != null)
+            GameManager.Instance.localPlayerText.text = "Local Player " + GameManager.Instance.viewPlayerID;
 
-        // ✅ 显示该玩家手牌
-        GameManager.Instance.ShowPlayerHand(currentPlayer - 1);
-
-        // ✅ 如果你有玩家 UI（头像、积分）等，也可在此刷新
-        // GameManager.Instance.playerUIManager.UpdateActivePlayer(currentPlayer);
+        GameManager.Instance.ShowPlayerHand(GameManager.Instance.viewPlayerID - 1);
     }
-
-
 }

@@ -324,6 +324,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerID: 1
+  viewPlayerID: 1
   localPlayerText: {fileID: 539000199}
   actionButton: {fileID: 1684571916}
   cardPrefab: {fileID: 2006592681289327055, guid: ea693182216fd42649c86aae4e7eeb5a, type: 3}
@@ -393,8 +394,8 @@ MonoBehaviour:
     blockedCenter: 0
     isPathPassable: 0
   pendingSprite: {fileID: 0}
-  cardDeck: []
   pendingCardIndex: -1
+  cardDeck: []
 --- !u!1 &331926352
 GameObject:
   m_ObjectHideFlags: 0
@@ -1583,13 +1584,13 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1102946864}
-        m_TargetAssemblyTypeName: TurnManager, Assembly-CSharp
-        m_MethodName: NextTurn
+      - m_Target: {fileID: 259952295}
+        m_TargetAssemblyTypeName: 
+        m_MethodName: 
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgumentAssemblyTypeName: 
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
