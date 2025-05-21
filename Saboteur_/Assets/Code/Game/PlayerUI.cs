@@ -22,12 +22,10 @@ public class PlayerUI : MonoBehaviour
 
     private PlayerData playerData;
 
-    // ✅ 添加按钮组件（可选，挂载方式也可以用事件绑定）
     private Button button;
 
     void Awake()
     {
-        // 自动获取按钮组件（前提是此对象上有 Button）
         button = GetComponent<Button>();
         if (button != null)
         {
@@ -53,26 +51,20 @@ public class PlayerUI : MonoBehaviour
         lampImage.sprite = playerData.HasLamp ? lampNormal : lampDisabled;
     }
 
-    // ✅ 点击时随机损坏一个工具
     public void OnClickRandomBreakTool()
     {
         if (playerData == null) return;
 
-        int r = Random.Range(0, 3); // 0: pickaxe, 1: minecart, 2: lamp
-
-        if (r == 0 && playerData.HasPickaxe)
-            playerData.HasPickaxe = false;
-        else if (r == 1 && playerData.HasMineCart)
-            playerData.HasMineCart = false;
-        else if (r == 2 && playerData.HasLamp)
-            playerData.HasLamp = false;
-        else
+        if (!string.IsNullOrEmpty(GameManager.Instance.pendingBreakEffect))
         {
-            // 若抽中的已经坏了，就递归再试一次（最多重试3次）
-            OnClickRandomBreakTool();
+            GameManager.Instance.ApplyBreakEffectTo(playerData);
             return;
         }
 
-        UpdateUI();
+        if (!string.IsNullOrEmpty(GameManager.Instance.pendingRepairEffect))
+        {
+            GameManager.Instance.ApplyRepairEffectTo(playerData);
+            return;
+        }
     }
-}
+} 

@@ -53,10 +53,26 @@ public class MapCell : MonoBehaviour
             return;
         }
 
+        // ✅ 工具损坏限制：不能出路径卡
+        if (card.cardType == Card.CardType.Path)
+        {
+            var currentPlayer = GameManager.Instance.playerGenerator.allPlayers[GameManager.Instance.playerID - 1];
+            if (!currentPlayer.HasLamp || !currentPlayer.HasPickaxe || !currentPlayer.HasMineCart)
+            {
+                Debug.LogWarning("⛔ 工具损坏，不能放置路径卡！");
+                if (GameManager.Instance.toolBrokenTipPanel != null)
+                {
+                    GameManager.Instance.toolBrokenTipPanel.SetActive(true);
+                    GameManager.Instance.CancelInvoke("HideToolBrokenTip");
+                    GameManager.Instance.Invoke("HideToolBrokenTip", 2f);
+                }
+                return;
+            }
+        }
+
         bool canConnect = false;
         var map = GameManager.Instance.mapGenerator.mapCells;
 
-        // 检查邻接方向连通性
         if (row > 0)
         {
             MapCell neighbor = map[row - 1, col];
@@ -92,7 +108,6 @@ public class MapCell : MonoBehaviour
             return;
         }
 
-        // ✅ 放置卡牌
         GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, transform);
         cardGO.GetComponent<CardDisplay>().Init(card, sprite);
 
@@ -104,21 +119,19 @@ public class MapCell : MonoBehaviour
 
         isOccupied = true;
 
-        // ✅ 替换当前玩家的手牌
-        var currentPlayer = GameManager.Instance.playerGenerator.allPlayers[GameManager.Instance.playerID - 1];
+        var currentPlayer2 = GameManager.Instance.playerGenerator.allPlayers[GameManager.Instance.playerID - 1];
         int replacedIndex = GameManager.Instance.pendingCardIndex;
 
-        if (replacedIndex >= 0 && replacedIndex < currentPlayer.CardSlots.Length)
+        if (replacedIndex >= 0 && replacedIndex < currentPlayer2.CardSlots.Length)
         {
             Card newCard = GameManager.Instance.DrawCard();
-            currentPlayer.CardSlots[replacedIndex] = newCard;
+            currentPlayer2.CardSlots[replacedIndex] = newCard;
         }
         else
         {
             Debug.LogError("替换失败：pendingCardIndex 超出范围！");
         }
 
-        // ✅ 清除选中状态
         GameManager.Instance.ClearPendingCard();
 
         Debug.Log($"🧩 玩家 {GameManager.Instance.playerID} 放置卡 [{card.cardName}] 于 ({row},{col})");
@@ -128,11 +141,11 @@ public class MapCell : MonoBehaviour
 
         TurnManager.Instance.NextTurn();
 
-        Debug.Log($"🟢 玩家 {GameManager.Instance.playerID} 当前手牌数：{currentPlayer.CardSlots.Length}");
+        Debug.Log($"🟢 玩家 {GameManager.Instance.playerID} 当前手牌数：{currentPlayer2.CardSlots.Length}");
         Debug.Log($"🃏 当前卡组剩余：{GameManager.Instance.cardDeck.Count}");
-        for (int i = 0; i < currentPlayer.CardSlots.Length; i++)
+        for (int i = 0; i < currentPlayer2.CardSlots.Length; i++)
         {
-            Debug.Log($"➡️ 手牌{i + 1}：{currentPlayer.CardSlots[i]?.cardName ?? "空"}");
+            Debug.Log($"➡️ 手牌{i + 1}：{currentPlayer2.CardSlots[i]?.cardName ?? "空"}");
         }
 
         RevealNeighbors(row, col);
@@ -194,10 +207,10 @@ public class MapCell : MonoBehaviour
             }
         }
 
-        TryReveal(r - 1, c); // 上
-        TryReveal(r + 1, c); // 下
-        TryReveal(r, c - 1); // 左
-        TryReveal(r, c + 1); // 右
+        TryReveal(r - 1, c);
+        TryReveal(r + 1, c);
+        TryReveal(r, c - 1);
+        TryReveal(r, c + 1);
     }
 
     public void RevealTerminal(Sprite faceSprite)

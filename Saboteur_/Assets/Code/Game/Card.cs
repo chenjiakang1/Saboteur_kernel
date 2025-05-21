@@ -9,7 +9,12 @@ public class Card
     public Sprite sprite; // 每张卡唯一绑定的图像
 
     public bool blockedCenter = false; // 中心是否被阻断
-    public bool isPathPassable = true; // ✅ 新增：是否允许被 DFS 通过
+    public bool isPathPassable = true; // ✅ 是否允许被 DFS 通过
+
+    // ✅ 新增：道具类型和效果字段
+    public enum CardType { Path, Blocked, Tool, Action }
+    public CardType cardType = CardType.Path;
+    public string toolEffect = ""; // 如 BreakLamp、RepairPickaxe
 
     public Card(bool up, bool down, bool left, bool right, string name = "")
     {

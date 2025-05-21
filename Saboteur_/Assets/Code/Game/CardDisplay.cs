@@ -7,10 +7,8 @@ public class CardDisplay : MonoBehaviour
     public Card cardData;
 
     public bool isSelected = false;
-
     public int cardIndex;
 
-    // 初始化卡牌数据
     public void Init(Card data, Sprite sprite = null)
     {
         cardData = data;
@@ -23,18 +21,16 @@ public class CardDisplay : MonoBehaviour
             image.sprite = null;
     }
 
-
     public void OnClick()
     {
         if (GameManager.Instance.hasGameEnded)
         {
             if (GameManager.Instance.endGameTip != null)
-                GameManager.Instance.endGameTip.SetActive(true); // 显示提示
+                GameManager.Instance.endGameTip.SetActive(true);
             Debug.Log("🛑 游戏结束，无法点击手牌");
             return;
         }
 
-        // ✅ 严格限制：视角玩家必须是出牌玩家
         if (GameManager.Instance.viewPlayerID != GameManager.Instance.playerID)
         {
             Debug.LogWarning("⛔ 当前不是你的出牌视角，无法操作卡牌！");
@@ -51,15 +47,28 @@ public class CardDisplay : MonoBehaviour
         GameManager.Instance.SetPendingCard(cardData, image.sprite, cardIndex);
         isSelected = true;
 
-        // 清除其他卡选中状态
+        // ✅ 处理破坏类道具卡
+        if (cardData.cardType == Card.CardType.Tool && cardData.toolEffect.StartsWith("Break"))
+        {
+            Debug.Log("💥 使用破坏工具卡，选择目标玩家");
+            GameManager.Instance.ShowBreakToolPanel(cardData.toolEffect, cardIndex);
+            return;
+        }
+
+        // ✅ 处理恢复类道具卡
+        if (cardData.cardType == Card.CardType.Tool && cardData.toolEffect.StartsWith("Repair"))
+        {
+            Debug.Log("🔧 使用修复工具卡，选择目标玩家");
+            GameManager.Instance.ShowRepairToolPanel(cardData.toolEffect, cardIndex);
+            return;
+        }
+
+        // 切换手牌选中状态
         CardDisplay[] handCards = transform.parent.GetComponentsInChildren<CardDisplay>();
         foreach (CardDisplay card in handCards)
         {
             if (card != this)
-            {
                 card.isSelected = false;
-            }
         }
     }
-
 }

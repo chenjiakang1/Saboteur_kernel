@@ -26,4 +26,13 @@ public class PlayerUIManager : MonoBehaviour
             playerUI.SetPlayer(player);
         }
     }
+    public void UpdateAllUI()
+    {
+        PlayerUI[] allUI = playerUIPanelParent.GetComponentsInChildren<PlayerUI>();
+        foreach (var ui in allUI)
+        {
+            ui.UpdateUI();
+        }
+    }
+
 }
