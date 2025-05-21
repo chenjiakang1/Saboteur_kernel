@@ -27,6 +27,15 @@ public class MapCell : MonoBehaviour
 
     public void OnClick()
     {
+        // ✅ 塌方卡逻辑优先
+        if (GameManager.Instance.pendingCard != null &&
+            GameManager.Instance.pendingCard.cardType == Card.CardType.Action &&
+            GameManager.Instance.pendingCard.toolEffect == "Collapse")
+        {
+            GameManager.Instance.ApplyCollapseTo(this);
+            return;
+        }
+
         if (GameManager.Instance.hasGameEnded)
         {
             if (GameManager.Instance.endGameTip != null)
@@ -41,8 +50,12 @@ public class MapCell : MonoBehaviour
             return;
         }
 
+        // ✅ 禁止放牌到已有路径卡的格子（除了塌方卡上面已放行）
         if (isBlocked || isOccupied)
+        {
+            Debug.Log("⛔ 此格已放置卡牌，不能重复操作！");
             return;
+        }
 
         Card card = GameManager.Instance.pendingCard;
         Sprite sprite = GameManager.Instance.pendingSprite;
@@ -53,7 +66,7 @@ public class MapCell : MonoBehaviour
             return;
         }
 
-        // ✅ 工具损坏限制：不能出路径卡
+        // ✅ 工具损坏检查
         if (card.cardType == Card.CardType.Path)
         {
             var currentPlayer = GameManager.Instance.playerGenerator.allPlayers[GameManager.Instance.playerID - 1];
@@ -70,6 +83,7 @@ public class MapCell : MonoBehaviour
             }
         }
 
+        // ✅ 连通性检查
         bool canConnect = false;
         var map = GameManager.Instance.mapGenerator.mapCells;
 
@@ -104,21 +118,24 @@ public class MapCell : MonoBehaviour
 
         if (!canConnect)
         {
-            Debug.LogWarning("Card cannot connect to any neighbors.");
+            Debug.LogWarning("❌ 该卡无法连接到任意邻居");
             return;
         }
 
+        // ✅ 放置路径卡
         GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, transform);
         cardGO.GetComponent<CardDisplay>().Init(card, sprite);
-
         RectTransform rt = cardGO.GetComponent<RectTransform>();
         rt.anchorMin = Vector2.zero;
         rt.anchorMax = Vector2.one;
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
 
+        this.card = card;
+        this.cardDisplay = cardGO.GetComponent<CardDisplay>();
         isOccupied = true;
 
+        // ✅ 替换手牌
         var currentPlayer2 = GameManager.Instance.playerGenerator.allPlayers[GameManager.Instance.playerID - 1];
         int replacedIndex = GameManager.Instance.pendingCardIndex;
 
@@ -129,19 +146,19 @@ public class MapCell : MonoBehaviour
         }
         else
         {
-            Debug.LogError("替换失败：pendingCardIndex 超出范围！");
+            Debug.LogError("❗替换失败：pendingCardIndex 超出范围");
         }
 
         GameManager.Instance.ClearPendingCard();
 
-        Debug.Log($"🧩 玩家 {GameManager.Instance.playerID} 放置卡 [{card.cardName}] 于 ({row},{col})");
+        Debug.Log($"🧩 玩家 {GameManager.Instance.playerID} 放置 [{card.cardName}] 于 ({row},{col})");
 
         PathChecker checker = Object.FindFirstObjectByType<PathChecker>();
         checker?.CheckWinCondition();
 
         TurnManager.Instance.NextTurn();
 
-        Debug.Log($"🟢 玩家 {GameManager.Instance.playerID} 当前手牌数：{currentPlayer2.CardSlots.Length}");
+        Debug.Log($"🟢 玩家{GameManager.Instance.playerID} 当前手牌数：{currentPlayer2.CardSlots.Length}");
         Debug.Log($"🃏 当前卡组剩余：{GameManager.Instance.cardDeck.Count}");
         for (int i = 0; i < currentPlayer2.CardSlots.Length; i++)
         {
@@ -153,9 +170,10 @@ public class MapCell : MonoBehaviour
 
     public Card GetCard()
     {
-        var display = GetComponentInChildren<CardDisplay>();
-        return display != null ? display.cardData : null;
+        if (!isOccupied || card == null || cardDisplay == null) return null;
+        return card;
     }
+
 
     public bool IsConnectedToNeighbor()
     {

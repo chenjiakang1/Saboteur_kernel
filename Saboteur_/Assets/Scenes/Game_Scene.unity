@@ -558,7 +558,9 @@ MonoBehaviour:
   pendingRepairEffect: 
   pendingBreakCardIndex: -1
   pendingRepairCardIndex: -1
+  collapseCardSprite: {fileID: 2962130257639743992, guid: e3f21beb36e7c4ecea44b55009ee1eac, type: 3}
   hasGameEnded: 0
+  pendingCollapseCardIndex: -1
   toolRepeatTipPanel: {fileID: 548989437}
   textToolAlreadyBroken: {fileID: 354263557}
   textToolAlreadyRepaired: {fileID: 1814241910}

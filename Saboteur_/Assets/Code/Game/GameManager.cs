@@ -88,7 +88,11 @@ public class GameManager : MonoBehaviour
     public int pendingBreakCardIndex = -1;
     public int pendingRepairCardIndex = -1;
 
+    [Header("塌方卡图像")]
+    public Sprite collapseCardSprite;
     public bool hasGameEnded = false;
+
+    public int pendingCollapseCardIndex = -1;
 
     [Header("重复使用工具提示面板")]
     public GameObject toolRepeatTipPanel;
@@ -418,6 +422,11 @@ public class GameManager : MonoBehaviour
         cardDeck.Add(CreateToolCard("RepairPickaxeAndLamp", Card.CardType.Tool, repairPickaxeAndLampSprite));
         cardDeck.Add(CreateToolCard("RepairMinecartAndLamp", Card.CardType.Tool, repairMinecartAndLampSprite));
 
+        for (int i = 0; i < 3; i++)
+        {
+            cardDeck.Add(CreateToolCard("Collapse", Card.CardType.Action, collapseCardSprite));
+        }
+
         ShuffleDeck();
         remainingCards = cardDeck.Count;
     }
@@ -486,6 +495,55 @@ public class GameManager : MonoBehaviour
         if (toolRepeatTipPanel != null) toolRepeatTipPanel.SetActive(false);
         if (textToolAlreadyBroken != null) textToolAlreadyBroken.SetActive(false);
         if (textToolAlreadyRepaired != null) textToolAlreadyRepaired.SetActive(false);
+    }
+    public void ApplyCollapseTo(MapCell cell)
+    {
+        Debug.Log($"🧨 正在尝试塌方：格子({cell.row},{cell.col}) isOccupied={cell.isOccupied}, card={cell.card}, cardDisplay={cell.cardDisplay}");
+
+        // 判断格子是否合法
+        if (!cell.isOccupied || cell.card == null)
+        {
+            Debug.Log("⛔ 无法塌方：该格子没有路径卡！");
+            return;
+        }
+
+        if (cell.card.cardName == "Origin" || cell.card.cardName == "Terminal")
+        {
+            Debug.Log("🚫 不能对起点或终点使用塌方卡！");
+            return;
+        }
+
+        if (cell.card.cardType != Card.CardType.Path)
+        {
+            Debug.Log("⛔ 只能塌方路径卡！");
+            return;
+        }
+
+        // ✅ 正确销毁路径卡 UI 和数据
+        if (cell.cardDisplay != null)
+        {
+            Destroy(cell.cardDisplay.gameObject);
+            cell.cardDisplay = null;
+        }
+
+        cell.card = null;
+        cell.isOccupied = false;
+
+        Debug.Log($"✅ 塌方成功：格子({cell.row},{cell.col}) 已被清除");
+
+        // ✅ 1. 使用掉塌方卡（手牌中）
+        ReplaceUsedCard(pendingCollapseCardIndex);
+
+        // ✅ 2. 清除所有出牌状态（避免复制 bug）
+        ClearPendingCard();
+        pendingCard = null;
+        pendingSprite = null;
+        pendingCardIndex = -1;
+        pendingCollapseCardIndex = -1;
+
+        // ✅ 3. UI刷新 + 下一回合
+        playerUIManager.UpdateAllUI();
+        TurnManager.Instance.NextTurn();
     }
 
 } 
