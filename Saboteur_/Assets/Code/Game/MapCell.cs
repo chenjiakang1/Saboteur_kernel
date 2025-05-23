@@ -24,7 +24,7 @@ public class MapCell : NetworkBehaviour
     {
         base.OnStartClient();
 
-        // 挂到 UI 面板上
+        // 设置 UI 父对象
         Transform mapParent = GameObject.Find("MapPanel")?.transform;
         if (mapParent != null)
         {
@@ -38,27 +38,37 @@ public class MapCell : NetworkBehaviour
         StartCoroutine(WaitForSyncAndRegister());
     }
 
+
     private IEnumerator WaitForSyncAndRegister()
     {
         float timeout = 3f;
         float timer = 0f;
 
-        while ((row == 0 && col == 0) && timer < timeout)
+        while (MapGenerator.LocalInstance == null && timer < timeout)
         {
-            Debug.LogWarning($"⏳ MapCell.row/col 尚未同步，延迟重试...");
-            yield return new WaitForSeconds(0.1f);
-            timer += 0.1f;
+            Debug.LogWarning($"⏳ 等待 MapGenerator.LocalInstance...");
+            yield return new WaitForSeconds(0.2f);
+            timer += 0.2f;
         }
 
         if (MapGenerator.LocalInstance != null)
         {
-            Debug.Log($"🟦 [OnStartClient] MapCell ({row},{col}) 初始化完成");
+            Debug.Log($"✅ [OnStartClient] MapCell 注册完成 ({row},{col}) → {name}");
             MapGenerator.LocalInstance.RegisterCell(this);
         }
         else
         {
-            Debug.LogWarning("❗ MapGenerator.LocalInstance 为 null，无法注册格子");
+            Debug.LogWarning($"❌ MapCell 注册失败 ({row},{col}) → LocalInstance 为 null");
         }
+    }
+
+    // ✅ 新增：服务端主动修复 row/col 未同步的问题
+    [TargetRpc]
+    public void TargetFixSync(NetworkConnection target, int fixedRow, int fixedCol)
+    {
+        row = fixedRow;
+        col = fixedCol;
+        Debug.Log($"🎯 [TargetFixSync] 客户端补丁设置 MapCell → row:{row}, col:{col}, ID:{GetInstanceID()}");
     }
 
     public void SetBlocked(Sprite sprite)
@@ -299,7 +309,6 @@ public class MapCell : NetworkBehaviour
                 }
             }
         }
-
 
         TryReveal(r - 1, c);
         TryReveal(r + 1, c);

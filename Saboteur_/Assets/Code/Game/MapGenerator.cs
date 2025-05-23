@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 using System.Collections.Generic;
 using Mirror;
 
@@ -32,6 +33,7 @@ public class MapGenerator : NetworkBehaviour
         if (LocalInstance == null)
         {
             LocalInstance = this;
+            Debug.Log("✅ MapGenerator.LocalInstance 设置成功");
         }
         else
         {
@@ -44,7 +46,8 @@ public class MapGenerator : NetworkBehaviour
         if (isServer)
         {
             Debug.Log("🧠 服务端开始生成地图...");
-            GenerateAndSyncMap();
+            syncedGoldIndex = Random.Range(0, 3);
+            StartCoroutine(GenerateMap(syncedGoldIndex));
         }
         else if (isClient)
         {
@@ -53,14 +56,7 @@ public class MapGenerator : NetworkBehaviour
         }
     }
 
-    [Server]
-    private void GenerateAndSyncMap()
-    {
-        syncedGoldIndex = Random.Range(0, 3);
-        GenerateMap(syncedGoldIndex);
-    }
-
-    public void GenerateMap(int goldIndex)
+    public IEnumerator GenerateMap(int goldIndex)
     {
         hasGenerated = true;
         mapCells = new MapCell[rows, cols];
@@ -82,12 +78,14 @@ public class MapGenerator : NetworkBehaviour
         {
             for (int c = 0; c < cols; c++)
             {
-                GameObject cellGO = Instantiate(mapCellPrefab); // ✅ 不设置父对象
+                GameObject cellGO = Instantiate(mapCellPrefab);
                 MapCell cell = cellGO.GetComponent<MapCell>();
                 cell.row = r;
                 cell.col = c;
-                mapCells[r, c] = cell;
 
+                yield return null; // ✅ 关键：等待 1 帧，确保 SyncVar 正常注册
+
+                mapCells[r, c] = cell;
                 cell.GetComponent<Image>().enabled = true;
                 NetworkServer.Spawn(cellGO);
 
@@ -100,21 +98,24 @@ public class MapGenerator : NetworkBehaviour
                         sprite = originSprite,
                         isPathPassable = true
                     };
-                    GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform);
+
+                    GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform.position, Quaternion.identity);
+                    NetworkServer.Spawn(cardGO);
                     var display = cardGO.GetComponent<CardDisplay>();
                     display.Init(originCard, originSprite);
+
                     cell.card = originCard;
                     cell.cardDisplay = display;
                     cell.isOccupied = true;
                 }
 
-                // 起点周围可见
+                // 起点周围格子显示
                 if ((r == 1 && c == 1) || (r == 3 && c == 1) || (r == 2 && c == 0) || (r == 2 && c == 2))
                 {
                     cell.GetComponent<Image>().enabled = true;
                 }
 
-                // 终点
+                // 终点设置
                 Vector2Int pos = new Vector2Int(r, c);
                 if (isGoldMap.ContainsKey(pos))
                 {
@@ -126,9 +127,12 @@ public class MapGenerator : NetworkBehaviour
                         sprite = terminusBackSprite,
                         isPathPassable = true
                     };
-                    GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform);
+
+                    GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform.position, Quaternion.identity);
+                    NetworkServer.Spawn(cardGO);
                     var display = cardGO.GetComponent<CardDisplay>();
                     display.Init(terminalCard, terminusBackSprite);
+
                     cell.card = terminalCard;
                     cell.cardDisplay = display;
                     cell.isOccupied = true;
@@ -144,6 +148,8 @@ public class MapGenerator : NetworkBehaviour
         if (hasGenerated) return;
 
         var allCells = FindObjectsByType<MapCell>(FindObjectsSortMode.None);
+        Debug.Log($"🧩 MapCell 总数：{allCells.Length}");
+
         if (allCells.Length == 0)
         {
             Debug.LogWarning("⏳ 客户端未收到 MapCell 网络对象，延迟重试...");
@@ -151,20 +157,29 @@ public class MapGenerator : NetworkBehaviour
             return;
         }
 
-        // 检查 row/col 是否已同步
-        bool ready = true;
-        foreach (var cell in allCells)
+        List<string> unsyncedCells = new List<string>();
+        int syncedCount = 0;
+
+        for (int i = 0; i < allCells.Length; i++)
         {
-            if (cell.row == 0 && cell.col == 0 && cell != allCells[0])
+            var cell = allCells[i];
+            string status = $"【{i}】→ name:{cell.name}, ID:{cell.GetInstanceID()}, row:{cell.row}, col:{cell.col}, isServer:{cell.isServer}, isClient:{cell.isClient}";
+
+            if (cell.row == 0 && cell.col == 0 && i != 0)
             {
-                ready = false;
-                break;
+                unsyncedCells.Add($"{cell.name} (ID:{cell.GetInstanceID()})");
+                Debug.LogWarning($"⚠️ 未同步 MapCell → {status}");
+            }
+            else
+            {
+                syncedCount++;
+                Debug.Log($"✅ 同步 MapCell → {status}");
             }
         }
 
-        if (!ready)
+        if (unsyncedCells.Count > 0)
         {
-            Debug.LogWarning("⏳ MapCell.row/col 尚未同步，延迟重试...");
+            Debug.LogWarning($"⏳ MapCell.row/col 尚未同步的对象有 {unsyncedCells.Count} 个，延迟重试...\n未同步对象列表: {string.Join(", ", unsyncedCells)}");
             Invoke(nameof(TryBuildMapReference), 1f);
             return;
         }
@@ -172,11 +187,36 @@ public class MapGenerator : NetworkBehaviour
         mapCells = new MapCell[rows, cols];
         foreach (var cell in allCells)
         {
-            mapCells[cell.row, cell.col] = cell;
+            if (cell.row >= 0 && cell.row < rows && cell.col >= 0 && cell.col < cols)
+            {
+                mapCells[cell.row, cell.col] = cell;
+            }
+            else
+            {
+                Debug.LogWarning($"❌ MapCell 坐标非法 → row:{cell.row}, col:{cell.col}, ID:{cell.GetInstanceID()}");
+            }
         }
 
         hasGenerated = true;
-        Debug.Log($"✅ 客户端构建 MapCell 引用成功，共 {allCells.Length} 个格子");
+        Debug.Log($"✅ 客户端构建 MapCell 引用成功：已同步 {syncedCount} 个格子，共 {allCells.Length} 个对象");
+    }
+
+    public void RegisterCell(MapCell cell)
+    {
+        if (mapCells == null)
+        {
+            mapCells = new MapCell[rows, cols];
+        }
+
+        if (cell.row >= 0 && cell.row < rows && cell.col >= 0 && cell.col < cols)
+        {
+            mapCells[cell.row, cell.col] = cell;
+            Debug.Log($"✅ 客户端地图格子引用注册成功：({cell.row},{cell.col})");
+        }
+        else
+        {
+            Debug.LogWarning($"❌ 地图格子坐标非法：({cell.row},{cell.col})");
+        }
     }
 
     public void RevealTerminalAt(int row, int col)
@@ -198,24 +238,6 @@ public class MapGenerator : NetworkBehaviour
             int rockIndex = Random.Range(0, rockSprites.Count);
             Sprite rockSprite = rockSprites[rockIndex];
             cell.RevealTerminal(rockSprite);
-        }
-    }
-
-    public void RegisterCell(MapCell cell)
-    {
-        if (mapCells == null)
-        {
-            mapCells = new MapCell[rows, cols];
-        }
-
-        if (cell.row >= 0 && cell.row < rows && cell.col >= 0 && cell.col < cols)
-        {
-            mapCells[cell.row, cell.col] = cell;
-            Debug.Log($"✅ 客户端地图格子引用注册成功：({cell.row},{cell.col})");
-        }
-        else
-        {
-            Debug.LogWarning($"❌ 地图格子坐标非法：({cell.row},{cell.col})");
         }
     }
 }
