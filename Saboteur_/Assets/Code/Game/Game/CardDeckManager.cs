@@ -188,7 +188,7 @@ public class CardDeckManager : MonoBehaviour
 
         if (remainingCards <= 0 && !gameManager.gameStateManager.hasGameEnded)
         {
-            gameManager.gameStateManager.GameOver(false);
+            gameManager.gameStateManager.RpcGameOver(false);
         }
 
         return card;

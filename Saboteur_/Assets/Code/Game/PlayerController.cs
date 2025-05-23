@@ -100,6 +100,17 @@ public class PlayerController : NetworkBehaviour
         cell.PlaceCardServer(cardName, spriteName, toolEffect, cardType,
                              up, down, left, right, blockedCenter, isPassable);
 
+        // ✅ 在服务端执行胜负判断逻辑
+        var checker = Object.FindFirstObjectByType<PathChecker>();
+        if (checker != null)
+        {
+            checker.CheckWinCondition();
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ 未找到 PathChecker 实例，无法执行胜负判断");
+        }
+
         CmdReplaceUsedCard(replacedIndex);
     }
 
@@ -123,7 +134,7 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-    // ✅ 客户端调用此方法发送调试信息到服务端（Host 控制台输出）
+    // ✅ 客户端调试输出调用（例如点击无效、工具破损等）
     public static void DebugClient(string msg)
     {
         if (LocalInstance != null)

@@ -52,7 +52,7 @@ public class MapGenerator : NetworkBehaviour
         else if (isClient)
         {
             Debug.Log("🧠 客户端等待构建地图引用...");
-            Invoke(nameof(TryBuildMapReference), 1f);
+            Invoke(nameof(TryBuildMapReference), 3f);
         }
     }
 
@@ -74,7 +74,7 @@ public class MapGenerator : NetworkBehaviour
             isGoldMap[terminalPositions[i]] = (i == goldIndex);
         }
 
-        // ✅ 只展示关键片段，其他结构保持不变
+        // ✅ 替换 GameObject 创建片段（MapGenerator.cs 中）
         for (int r = 0; r < rows; r++)
         {
             for (int c = 0; c < cols; c++)
@@ -84,41 +84,38 @@ public class MapGenerator : NetworkBehaviour
                 var state = cellGO.GetComponent<MapCellState>();
                 var net = cellGO.GetComponent<MapCellNetwork>();
 
-                // ✅ 设置到 SyncVar（同步用）和本地状态（注册用）
+                // ✅ 设置 row/col → SyncVar 会标记为已修改
                 state.row = r;
                 state.col = c;
                 net.row = r;
                 net.col = c;
 
-                yield return null;
+                // ✅ 延迟一帧，让 Mirror 捕捉 SyncVar 变化
+                yield return new WaitForEndOfFrame();
 
-                mapCells[r, c] = cell;
+                // ✅ 同步到网络前再赋值 mapCells
                 NetworkServer.Spawn(cellGO);
-                cell.GetComponent<Image>().enabled = true;
+                mapCells[r, c] = cell;
 
+                // ✅ UI 显示控制
+                cell.GetComponent<UnityEngine.UI.Image>().enabled = true;
+
+                // ✅ 设置起点
                 if (r == 2 && c == 1)
                 {
                     net.SetBlockedByName("Origin_0");
                     state.isOccupied = true;
-                    Debug.Log($"✅ 服务端设置起点 ({r},{c}) spriteName='Origin_0' isBlocked={state.isBlocked}");
                 }
 
-                if ((r == 1 && c == 1) || (r == 3 && c == 1) || (r == 2 && c == 0) || (r == 2 && c == 2))
-                {
-                    cell.GetComponent<Image>().enabled = true;
-                }
-
+                // ✅ 设置终点
                 Vector2Int pos = new Vector2Int(r, c);
                 if (isGoldMap.ContainsKey(pos))
                 {
                     net.SetBlockedByName("Terminus_0");
                     state.isOccupied = true;
-                    Debug.Log($"✅ 服务端设置终点 ({r},{c}) spriteName='Terminus_0' isBlocked={state.isBlocked}");
                 }
             }
         }
-
-
         Debug.Log("✅ 服务端地图生成完毕");
     }
 
@@ -136,54 +133,36 @@ public class MapGenerator : NetworkBehaviour
             return;
         }
 
-        List<string> unsyncedCells = new List<string>();
-        int syncedCount = 0;
-
-        int firstCellID = allCells[0].GetInstanceID(); // ✅ 用于排除合法的 (0,0)
-
-        for (int i = 0; i < allCells.Length; i++)
-        {
-            var cell = allCells[i];
-            var state = cell.GetComponent<MapCellState>();
-
-            string status = $"【{i}】→ name:{cell.name}, ID:{cell.GetInstanceID()}, row:{state.row}, col:{state.col}, isServer:{cell.isServer}, isClient:{cell.isClient}";
-
-            // ✅ 改进判断：合法 (0,0) 不误报
-            if ((state.row == 0 && state.col == 0) && cell.GetInstanceID() != firstCellID)
-            {
-                unsyncedCells.Add($"{cell.name} (ID:{cell.GetInstanceID()})");
-                Debug.LogWarning($"⚠️ 未同步 MapCell → {status}");
-            }
-            else
-            {
-                syncedCount++;
-                Debug.Log($"✅ 同步 MapCell → {status}");
-            }
-        }
-
-        if (unsyncedCells.Count > 0)
-        {
-            Debug.LogWarning($"⏳ MapCell.row/col 尚未同步的对象有 {unsyncedCells.Count} 个，延迟重试...\n未同步对象列表: {string.Join(", ", unsyncedCells)}");
-            Invoke(nameof(TryBuildMapReference), 1f);
-            return;
-        }
-
         mapCells = new MapCell[rows, cols];
+        int syncedCount = 0;
+        int skipped = 0;
+
         foreach (var cell in allCells)
         {
             var state = cell.GetComponent<MapCellState>();
+
+            // ✅ 如果 row/col 尚未同步，跳过这个格子
+            if (state.row == 0 && state.col == 0 && cell.GetInstanceID() != allCells[0].GetInstanceID())
+            {
+                skipped++;
+                continue;
+            }
+
             if (state.row >= 0 && state.row < rows && state.col >= 0 && state.col < cols)
             {
                 mapCells[state.row, state.col] = cell;
-            }
-            else
-            {
-                Debug.LogWarning($"❌ MapCell 坐标非法 → row:{state.row}, col:{state.col}, ID:{cell.GetInstanceID()}");
+                syncedCount++;
             }
         }
 
         hasGenerated = true;
-        Debug.Log($"✅ 客户端构建 MapCell 引用成功：已同步 {syncedCount} 个格子，共 {allCells.Length} 个对象");
+        Debug.Log($"✅ 客户端构建 MapCell 引用成功：已同步 {syncedCount} 个格子，跳过 {skipped} 个未同步对象");
+
+        // ✅ 可选：如果 skipped > 0，继续尝试补充注册（不影响正常游戏）
+        if (skipped > 0)
+        {
+            Invoke(nameof(TryBuildMapReference), 1f);
+        }
     }
 
 
@@ -214,17 +193,23 @@ public class MapGenerator : NetworkBehaviour
         var cell = mapCells[row, col];
         if (cell == null) return;
 
+        var net = cell.GetComponent<MapCellNetwork>();
+
         if (isGoldMap[pos])
         {
-            cell.RevealTerminal(goldSprite);
+            string name = "Gold";  // ✅ 正确的金矿图片名
+            net?.RpcRevealTerminal(name); // ✅ 仅广播客户端显示
+
             if (!GameManager.Instance.gameStateManager.hasGameEnded)
-                GameManager.Instance.gameStateManager.GameOver();
+                GameManager.Instance.gameStateManager.RpcGameOver(true); // ✅ 广播所有客户端
         }
         else
         {
             int rockIndex = Random.Range(0, rockSprites.Count);
-            Sprite rockSprite = rockSprites[rockIndex];
-            cell.RevealTerminal(rockSprite);
+            string name = $"Rock_{rockIndex}";
+            net?.RpcRevealTerminal(name); // ✅ 广播客户端翻石头
         }
     }
+
+
 }
