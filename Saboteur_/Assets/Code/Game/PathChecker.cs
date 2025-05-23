@@ -49,7 +49,9 @@ public class PathChecker : NetworkBehaviour
             return false;
 
         MapCell cell = map[r, c];
-        if (!cell.isOccupied) return false;
+        var state = cell.GetComponent<MapCellState>();
+
+        if (!state.isOccupied) return false;
 
         Card card = cell.GetCard();
         if (card == null || card.blockedCenter) return false;
@@ -90,7 +92,9 @@ public class PathChecker : NetworkBehaviour
         visited[r, c] = true;
 
         MapCell cell = map[r, c];
-        if (!cell.isOccupied) return false;
+        var state = cell.GetComponent<MapCellState>();
+
+        if (!state.isOccupied) return false;
 
         Card current = cell.GetCard();
         if (current == null || current.blockedCenter || !current.isPathPassable)

@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: be68a5cc3b6b84a9d8e94173c8d2b1de
+guid: 22bd116c76d5a4577866cd99dbae3155
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 1757367659423654758
-    second: Cross_4_0
+      213: 5441921329025242576
+    second: Origin_0_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Cross_4_0
+      name: Origin_0_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 1024
-        height: 1366
+        width: 650
+        height: 1000
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 663e4b7439c636810800000000000000
-      internalID: 1757367659423654758
+      spriteID: 0d5db20cd96958b40800000000000000
+      internalID: 5441921329025242576
       vertices: []
       indices: 
       edges: []

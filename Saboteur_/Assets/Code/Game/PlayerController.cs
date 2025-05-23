@@ -80,7 +80,14 @@ public class PlayerController : NetworkBehaviour
         }
 
         var cell = identity.GetComponent<MapCell>();
-        if (cell == null || cell.isOccupied || cell.isBlocked)
+        if (cell == null)
+        {
+            Debug.LogWarning("[服务端] 找不到 MapCell");
+            return;
+        }
+
+        var state = cell.GetComponent<MapCellState>();
+        if (state.isOccupied || state.isBlocked)
         {
             Debug.LogWarning("[服务端] Cell 不可用或已占用");
             return;

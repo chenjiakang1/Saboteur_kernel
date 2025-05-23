@@ -14,6 +14,10 @@ GameObject:
   - component: {fileID: 3095259643294473445}
   - component: {fileID: -1592156289641881913}
   - component: {fileID: 409322765159417652}
+  - component: {fileID: -7615244306896650348}
+  - component: {fileID: -5248574535971639505}
+  - component: {fileID: 8471343580328003800}
+  - component: {fileID: -2572373516741830583}
   m_Layer: 5
   m_Name: MapCell
   m_TagString: Untagged
@@ -182,3 +186,72 @@ MonoBehaviour:
   serverOnly: 0
   visibility: 0
   hasSpawned: 0
+--- !u!114 &-7615244306896650348
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2304371319932448159}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25a5849e3d49e466296af9fd659d5f6b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isOccupied: 0
+  isBlocked: 0
+  row: 0
+  col: 0
+  card:
+    cardName: 
+    sprite: {fileID: 0}
+    up: 0
+    down: 0
+    left: 0
+    right: 0
+    blockedCenter: 0
+    isPathPassable: 0
+    cardType: 0
+    toolEffect: 
+--- !u!114 &-5248574535971639505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2304371319932448159}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fbf174ed12c74630bf9f463c1975acb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cardDisplay: {fileID: 0}
+--- !u!114 &8471343580328003800
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2304371319932448159}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23a387118712e489e93a7d3c86b537ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  row: 0
+  col: 0
+--- !u!114 &-2572373516741830583
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2304371319932448159}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 063e1fea89bf94c9193132a1510d9307, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

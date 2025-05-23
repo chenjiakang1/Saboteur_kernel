@@ -9,24 +9,28 @@ public class CollapseManager : MonoBehaviour
     /// </summary>
     public void ApplyCollapseTo(MapCell cell)
     {
-        Debug.Log($"🧨 使用塌方卡：格子({cell.row}, {cell.col})");
+        var state = cell.GetComponent<MapCellState>();
+        var ui = cell.GetComponent<MapCellUI>();
 
-        if (cell.card == null || cell.card.cardType != Card.CardType.Path)
+        Debug.Log($"🧨 使用塌方卡：格子({state.row}, {state.col})");
+
+        if (state.card == null || state.card.cardType != Card.CardType.Path)
         {
             Debug.Log("⛔ 塌方卡只能用于清除路径卡");
             return;
         }
 
         // ✅ 清除格子中路径卡的逻辑状态与显示
-        cell.card = null;
-        if (cell.cardDisplay != null)
-        {
-            Destroy(cell.cardDisplay.gameObject);
-            cell.cardDisplay = null;
-        }
-        cell.isOccupied = false;
+        state.card = null;
+        state.isOccupied = false;
 
-        // ✅ 恢复格子为未放置状态
+        if (ui.cardDisplay != null)
+        {
+            Destroy(ui.cardDisplay.gameObject);
+            ui.cardDisplay = null;
+        }
+
+        // ✅ 恢复格子背景（图像恢复为灰色背景）
         var img = cell.GetComponent<Image>();
         if (img != null)
         {
@@ -48,7 +52,6 @@ public class CollapseManager : MonoBehaviour
 
         GameManager.Instance.ClearPendingCard();
         TurnManager.Instance.NextTurn();
-        Debug.Log($"✅ 清除完成，格子({cell.row},{cell.col}) 现在可以重新放牌");
+        Debug.Log($"✅ 清除完成，格子({state.row},{state.col}) 现在可以重新放牌");
     }
-
 }

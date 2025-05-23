@@ -74,71 +74,50 @@ public class MapGenerator : NetworkBehaviour
             isGoldMap[terminalPositions[i]] = (i == goldIndex);
         }
 
+        // ✅ 只展示关键片段，其他结构保持不变
         for (int r = 0; r < rows; r++)
         {
             for (int c = 0; c < cols; c++)
             {
                 GameObject cellGO = Instantiate(mapCellPrefab);
                 MapCell cell = cellGO.GetComponent<MapCell>();
-                cell.row = r;
-                cell.col = c;
+                var state = cellGO.GetComponent<MapCellState>();
+                var net = cellGO.GetComponent<MapCellNetwork>();
 
-                yield return null; // ✅ 关键：等待 1 帧，确保 SyncVar 正常注册
+                // ✅ 设置到 SyncVar（同步用）和本地状态（注册用）
+                state.row = r;
+                state.col = c;
+                net.row = r;
+                net.col = c;
+
+                yield return null;
 
                 mapCells[r, c] = cell;
-                cell.GetComponent<Image>().enabled = true;
                 NetworkServer.Spawn(cellGO);
+                cell.GetComponent<Image>().enabled = true;
 
-                // 起点
                 if (r == 2 && c == 1)
                 {
-                    cell.SetBlocked(originSprite);
-                    Card originCard = new Card(true, true, true, true, "Origin")
-                    {
-                        sprite = originSprite,
-                        isPathPassable = true
-                    };
-
-                    GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform.position, Quaternion.identity);
-                    NetworkServer.Spawn(cardGO);
-                    var display = cardGO.GetComponent<CardDisplay>();
-                    display.Init(originCard, originSprite);
-
-                    cell.card = originCard;
-                    cell.cardDisplay = display;
-                    cell.isOccupied = true;
+                    net.SetBlockedByName("Origin_0");
+                    state.isOccupied = true;
+                    Debug.Log($"✅ 服务端设置起点 ({r},{c}) spriteName='Origin_0' isBlocked={state.isBlocked}");
                 }
 
-                // 起点周围格子显示
                 if ((r == 1 && c == 1) || (r == 3 && c == 1) || (r == 2 && c == 0) || (r == 2 && c == 2))
                 {
                     cell.GetComponent<Image>().enabled = true;
                 }
 
-                // 终点设置
                 Vector2Int pos = new Vector2Int(r, c);
                 if (isGoldMap.ContainsKey(pos))
                 {
-                    cell.GetComponent<Image>().enabled = true;
-                    cell.SetBlocked(terminusBackSprite);
-
-                    Card terminalCard = new Card(true, true, true, true, "Terminal")
-                    {
-                        sprite = terminusBackSprite,
-                        isPathPassable = true
-                    };
-
-                    GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, cell.transform.position, Quaternion.identity);
-                    NetworkServer.Spawn(cardGO);
-                    var display = cardGO.GetComponent<CardDisplay>();
-                    display.Init(terminalCard, terminusBackSprite);
-
-                    cell.card = terminalCard;
-                    cell.cardDisplay = display;
-                    cell.isOccupied = true;
+                    net.SetBlockedByName("Terminus_0");
+                    state.isOccupied = true;
+                    Debug.Log($"✅ 服务端设置终点 ({r},{c}) spriteName='Terminus_0' isBlocked={state.isBlocked}");
                 }
             }
         }
+
 
         Debug.Log("✅ 服务端地图生成完毕");
     }
@@ -160,12 +139,17 @@ public class MapGenerator : NetworkBehaviour
         List<string> unsyncedCells = new List<string>();
         int syncedCount = 0;
 
+        int firstCellID = allCells[0].GetInstanceID(); // ✅ 用于排除合法的 (0,0)
+
         for (int i = 0; i < allCells.Length; i++)
         {
             var cell = allCells[i];
-            string status = $"【{i}】→ name:{cell.name}, ID:{cell.GetInstanceID()}, row:{cell.row}, col:{cell.col}, isServer:{cell.isServer}, isClient:{cell.isClient}";
+            var state = cell.GetComponent<MapCellState>();
 
-            if (cell.row == 0 && cell.col == 0 && i != 0)
+            string status = $"【{i}】→ name:{cell.name}, ID:{cell.GetInstanceID()}, row:{state.row}, col:{state.col}, isServer:{cell.isServer}, isClient:{cell.isClient}";
+
+            // ✅ 改进判断：合法 (0,0) 不误报
+            if ((state.row == 0 && state.col == 0) && cell.GetInstanceID() != firstCellID)
             {
                 unsyncedCells.Add($"{cell.name} (ID:{cell.GetInstanceID()})");
                 Debug.LogWarning($"⚠️ 未同步 MapCell → {status}");
@@ -187,19 +171,21 @@ public class MapGenerator : NetworkBehaviour
         mapCells = new MapCell[rows, cols];
         foreach (var cell in allCells)
         {
-            if (cell.row >= 0 && cell.row < rows && cell.col >= 0 && cell.col < cols)
+            var state = cell.GetComponent<MapCellState>();
+            if (state.row >= 0 && state.row < rows && state.col >= 0 && state.col < cols)
             {
-                mapCells[cell.row, cell.col] = cell;
+                mapCells[state.row, state.col] = cell;
             }
             else
             {
-                Debug.LogWarning($"❌ MapCell 坐标非法 → row:{cell.row}, col:{cell.col}, ID:{cell.GetInstanceID()}");
+                Debug.LogWarning($"❌ MapCell 坐标非法 → row:{state.row}, col:{state.col}, ID:{cell.GetInstanceID()}");
             }
         }
 
         hasGenerated = true;
         Debug.Log($"✅ 客户端构建 MapCell 引用成功：已同步 {syncedCount} 个格子，共 {allCells.Length} 个对象");
     }
+
 
     public void RegisterCell(MapCell cell)
     {
@@ -208,14 +194,15 @@ public class MapGenerator : NetworkBehaviour
             mapCells = new MapCell[rows, cols];
         }
 
-        if (cell.row >= 0 && cell.row < rows && cell.col >= 0 && cell.col < cols)
+        var state = cell.GetComponent<MapCellState>();
+        if (state.row >= 0 && state.row < rows && state.col >= 0 && state.col < cols)
         {
-            mapCells[cell.row, cell.col] = cell;
-            Debug.Log($"✅ 客户端地图格子引用注册成功：({cell.row},{cell.col})");
+            mapCells[state.row, state.col] = cell;
+            Debug.Log($"✅ 客户端地图格子引用注册成功：({state.row},{state.col})");
         }
         else
         {
-            Debug.LogWarning($"❌ 地图格子坐标非法：({cell.row},{cell.col})");
+            Debug.LogWarning($"❌ 地图格子坐标非法：({state.row},{state.col})");
         }
     }
 
