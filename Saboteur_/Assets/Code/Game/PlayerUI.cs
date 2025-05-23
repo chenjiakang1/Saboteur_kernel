@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Mirror;
 
 public class PlayerUI : MonoBehaviour
 {
@@ -20,8 +21,7 @@ public class PlayerUI : MonoBehaviour
     public Sprite lampNormal;
     public Sprite lampDisabled;
 
-    private PlayerData playerData;
-
+    private PlayerController player;
     private Button button;
 
     void Awake()
@@ -33,38 +33,42 @@ public class PlayerUI : MonoBehaviour
         }
     }
 
-    public void SetPlayer(PlayerData data)
+    public void SetPlayer(PlayerController player)
     {
-        playerData = data;
+        this.player = player;
         UpdateUI();
     }
 
     public void UpdateUI()
     {
-        if (playerData == null) return;
+        if (player == null) return;
 
         if (nameText != null)
-            nameText.text = playerData.Name;
+            nameText.text = player.playerName;
 
-        pickaxeImage.sprite = playerData.HasPickaxe ? pickaxeNormal : pickaxeDisabled;
-        minecartImage.sprite = playerData.HasMineCart ? minecartNormal : minecartDisabled;
-        lampImage.sprite = playerData.HasLamp ? lampNormal : lampDisabled;
+        pickaxeImage.sprite = player.hasPickaxe ? pickaxeNormal : pickaxeDisabled;
+        minecartImage.sprite = player.hasMineCart ? minecartNormal : minecartDisabled;
+        lampImage.sprite = player.hasLamp ? lampNormal : lampDisabled;
     }
 
     public void OnClickRandomBreakTool()
     {
-        if (playerData == null) return;
+        if (player == null || !player.isLocalPlayer) return;
 
-        if (!string.IsNullOrEmpty(GameManager.Instance.pendingBreakEffect))
+        var toolEffect = GameManager.Instance.toolEffectManager;
+
+        if (!string.IsNullOrEmpty(toolEffect.pendingBreakEffect))
         {
-            GameManager.Instance.ApplyBreakEffectTo(playerData);
+            toolEffect.ApplyBreakEffectTo(player);
             return;
         }
 
-        if (!string.IsNullOrEmpty(GameManager.Instance.pendingRepairEffect))
+        if (!string.IsNullOrEmpty(toolEffect.pendingRepairEffect))
         {
-            GameManager.Instance.ApplyRepairEffectTo(playerData);
+            toolEffect.ApplyRepairEffectTo(player);
             return;
         }
     }
-} 
+
+    public PlayerController Player => player;
+}

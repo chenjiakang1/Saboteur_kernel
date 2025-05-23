@@ -5,66 +5,69 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/LobbyScene.unity
     guid: 95306ace779d54ee083dbba3895d3225
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/ProfileScene.unity
     guid: c693e77724a2845e697d5374b4f56f0f
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/LeaderboardScene.unity
     guid: 87898a771a2c44c549cf2ae26bff7bd1
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Setting_scene.unity
     guid: 8333b7fb5e9294b738916a8422ba6246
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene01.unity
     guid: cc97d62854fcf46a980434fe6730983b
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene02.unity
     guid: 853cd73b0dccc477c9afcdb60ddf6449
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene03.unity
     guid: 7aac1b1a239144bb79d74797510a8aba
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene04.unity
     guid: 3f60c9d9b1ce5413da498344cb6d5b9f
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene05.unity
     guid: a308095367f1e472198eb3ee7a189a91
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene06.unity
     guid: 8a0d4a34a0b5d4b68bea3c5559122bd5
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene07.unity
     guid: bdecd216559d94ba2873fcc882994e13
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene08.unity
     guid: 6bc756a518936412699c27f7f1d9b083
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene09.unity
     guid: 558e2d1c8d6904b69a7ae33a9eb17b7f
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene10.unity
     guid: 44164b0ed870546a7a7d1b38488257c2
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene11.unity
     guid: cee7b0dfb24594405acc9fe0c45c02a3
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene12.unity
     guid: a29516e8f346f41d5967c6e5f3fde256
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Game_tutorial/Tutorial_scene13.unity
     guid: 72f664a3f16544454a6f0c1507d5dde7
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/ChangePassword_scene.unity
     guid: faa955110d08949bfb6ff4e1e2003aaf
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Create_a_room_scene.unity
     guid: 9c47833d80f3f4f9ea7ece54c174dbac
+  - enabled: 1
+    path: Assets/Scenes/Game_Scene.unity
+    guid: 7e27a3b66e09c4ebaa9dea360f8ba162
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   m_UseUCBPForAssetBundles: 0

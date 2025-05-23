@@ -9,7 +9,6 @@ public class TurnManager : MonoBehaviour
     public int totalPlayers = 1;
 
     public TextMeshProUGUI turnText;
-    public TextMeshProUGUI localPlayerText;
 
     private void Awake() => Instance = this;
 
@@ -23,30 +22,23 @@ public class TurnManager : MonoBehaviour
 
         UpdateTurnUI();
 
-        // ✅ 加入回合切换后自动检测卡牌耗尽 + 所有手牌为空 → 判定失败
-        if (!GameManager.Instance.hasGameEnded)
+        if (!GameManager.Instance.gameStateManager.hasGameEnded)
         {
             bool allHandCardsEmpty = true;
 
-            foreach (var player in GameManager.Instance.playerGenerator.allPlayers)
+            foreach (var player in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
             {
-                foreach (var card in player.CardSlots)
+                if (player.syncCardSlots.Count > 0)
                 {
-                    if (card != null)
-                    {
-                        allHandCardsEmpty = false;
-                        break;
-                    }
-                }
-
-                if (!allHandCardsEmpty)
+                    allHandCardsEmpty = false;
                     break;
+                }
             }
 
-            if (GameManager.Instance.cardDeck.Count == 0 && allHandCardsEmpty)
+            if (GameManager.Instance.cardDeckManager.cardDeck.Count == 0 && allHandCardsEmpty)
             {
                 Debug.Log("❌ 所有卡牌已出完且玩家手牌为空，触发失败！");
-                GameManager.Instance.GameOver(false);
+                GameManager.Instance.gameStateManager.GameOver(false);
             }
         }
     }
@@ -54,13 +46,8 @@ public class TurnManager : MonoBehaviour
     public void UpdateTurnUI()
     {
         if (turnText != null)
-            turnText.text = "Player " + currentPlayer + "'s Turn";
+            turnText.text = $"Player {currentPlayer}'s Turn";
 
-        GameManager.Instance.playerID = currentPlayer;
-
-        if (GameManager.Instance.localPlayerText != null)
-            GameManager.Instance.localPlayerText.text = "Local Player " + GameManager.Instance.viewPlayerID;
-
-        GameManager.Instance.ShowPlayerHand(GameManager.Instance.viewPlayerID - 1);
+        GameManager.Instance.playerHandManager.ShowLocalPlayerHand();
     }
 }

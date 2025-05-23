@@ -1,12 +1,14 @@
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections.Generic;
+using Mirror;
+using System.Collections;
 
-public class MapCell : MonoBehaviour
+public class MapCell : NetworkBehaviour
 {
     public bool isOccupied = false;
     public bool isBlocked = false;
-    public int row, col;
+    [SyncVar] public int row;
+    [SyncVar] public int col;
 
     private Image image;
 
@@ -18,200 +20,269 @@ public class MapCell : MonoBehaviour
         image = GetComponent<Image>();
     }
 
+    public override void OnStartClient()
+    {
+        base.OnStartClient();
+
+        // 挂到 UI 面板上
+        Transform mapParent = GameObject.Find("MapPanel")?.transform;
+        if (mapParent != null)
+        {
+            transform.SetParent(mapParent, false);
+        }
+        else
+        {
+            Debug.LogWarning("❗ [MapCell] 找不到 UI 中的 MapPanel，格子不会显示在界面上");
+        }
+
+        StartCoroutine(WaitForSyncAndRegister());
+    }
+
+    private IEnumerator WaitForSyncAndRegister()
+    {
+        float timeout = 3f;
+        float timer = 0f;
+
+        while ((row == 0 && col == 0) && timer < timeout)
+        {
+            Debug.LogWarning($"⏳ MapCell.row/col 尚未同步，延迟重试...");
+            yield return new WaitForSeconds(0.1f);
+            timer += 0.1f;
+        }
+
+        if (MapGenerator.LocalInstance != null)
+        {
+            Debug.Log($"🟦 [OnStartClient] MapCell ({row},{col}) 初始化完成");
+            MapGenerator.LocalInstance.RegisterCell(this);
+        }
+        else
+        {
+            Debug.LogWarning("❗ MapGenerator.LocalInstance 为 null，无法注册格子");
+        }
+    }
+
     public void SetBlocked(Sprite sprite)
     {
         isBlocked = true;
+        isOccupied = false;
+        card = null;
+
+        if (cardDisplay != null)
+        {
+            Destroy(cardDisplay.gameObject);
+            cardDisplay = null;
+        }
+
         image.sprite = sprite;
         image.color = Color.white;
+
+        PlayerController.DebugClient($"🧱 设置阻断块 ({row},{col})，Sprite: {sprite.name}");
     }
 
     public void OnClick()
     {
-        // ✅ 塌方卡逻辑优先
-        if (GameManager.Instance.pendingCard != null &&
-            GameManager.Instance.pendingCard.cardType == Card.CardType.Action &&
-            GameManager.Instance.pendingCard.toolEffect == "Collapse")
+        PlayerController.DebugClient($"🟪 点击地图格子 ({row},{col}) → isBlocked: {isBlocked}, isOccupied: {isOccupied}");
+
+        var pending = GameManager.Instance.pendingCard;
+
+        if (pending.HasValue &&
+            pending.Value.cardType == Card.CardType.Action &&
+            pending.Value.toolEffect == "Collapse")
         {
-            GameManager.Instance.ApplyCollapseTo(this);
+            PlayerController.DebugClient($"💥 尝试使用塌方卡在 ({row},{col})");
+            GameManager.Instance.collapseManager.ApplyCollapseTo(this);
             return;
         }
 
-        if (GameManager.Instance.hasGameEnded)
+        if (GameManager.Instance.gameStateManager.hasGameEnded)
         {
-            if (GameManager.Instance.endGameTip != null)
-                GameManager.Instance.endGameTip.SetActive(true);
-            Debug.Log("🛑 游戏结束，无法点击地图格子放牌");
+            GameManager.Instance.endGameTip?.SetActive(true);
             return;
         }
 
-        if (GameManager.Instance.viewPlayerID != GameManager.Instance.playerID)
-        {
-            Debug.LogWarning("当前不是你的出牌回合，请勿操作卡牌。");
-            return;
-        }
-
-        // ✅ 禁止放牌到已有路径卡的格子（除了塌方卡上面已放行）
         if (isBlocked || isOccupied)
         {
-            Debug.Log("⛔ 此格已放置卡牌，不能重复操作！");
+            PlayerController.DebugClient($"⛔ 格子 ({row},{col}) 被阻挡或已占用");
             return;
         }
 
-        Card card = GameManager.Instance.pendingCard;
-        Sprite sprite = GameManager.Instance.pendingSprite;
-
-        if (card == null || sprite == null)
+        if (!pending.HasValue || GameManager.Instance.pendingSprite == null)
         {
-            Debug.LogWarning("No card selected");
+            PlayerController.DebugClient("⚠️ 无 pendingCard，点击无效");
             return;
         }
 
-        // ✅ 工具损坏检查
-        if (card.cardType == Card.CardType.Path)
+        var cardData = pending.Value;
+        var currentPlayer = PlayerController.LocalInstance;
+        if (currentPlayer == null)
         {
-            var currentPlayer = GameManager.Instance.playerGenerator.allPlayers[GameManager.Instance.playerID - 1];
-            if (!currentPlayer.HasLamp || !currentPlayer.HasPickaxe || !currentPlayer.HasMineCart)
-            {
-                Debug.LogWarning("⛔ 工具损坏，不能放置路径卡！");
-                if (GameManager.Instance.toolBrokenTipPanel != null)
-                {
-                    GameManager.Instance.toolBrokenTipPanel.SetActive(true);
-                    GameManager.Instance.CancelInvoke("HideToolBrokenTip");
-                    GameManager.Instance.Invoke("HideToolBrokenTip", 2f);
-                }
-                return;
-            }
+            PlayerController.DebugClient("❌ LocalInstance 为空，无法出牌");
+            return;
         }
 
-        // ✅ 连通性检查
+        if (cardData.cardType == Card.CardType.Path &&
+            (!currentPlayer.hasLamp || !currentPlayer.hasPickaxe || !currentPlayer.hasMineCart))
+        {
+            var toolUI = GameManager.Instance.toolEffectManager;
+            toolUI.toolRepeatTipPanel?.SetActive(true);
+            toolUI.textToolAlreadyBroken?.SetActive(true);
+            toolUI.textToolAlreadyRepaired?.SetActive(false);
+            toolUI.CancelInvoke("HideToolRepeatTip");
+            toolUI.Invoke("HideToolRepeatTip", 2f);
+            PlayerController.DebugClient("⛏️ 工具破损，不能出路径卡");
+            return;
+        }
+
         bool canConnect = false;
         var map = GameManager.Instance.mapGenerator.mapCells;
 
         if (row > 0)
         {
-            MapCell neighbor = map[row - 1, col];
-            Card neighborCard = neighbor.GetCard();
-            if (neighborCard != null && card.up && neighborCard.down)
-                canConnect = true;
+            var neighbor = map[row - 1, col]?.GetCard();
+            if (neighbor != null && cardData.up && neighbor.down) canConnect = true;
         }
         if (row < map.GetLength(0) - 1)
         {
-            MapCell neighbor = map[row + 1, col];
-            Card neighborCard = neighbor.GetCard();
-            if (neighborCard != null && card.down && neighborCard.up)
-                canConnect = true;
+            var neighbor = map[row + 1, col]?.GetCard();
+            if (neighbor != null && cardData.down && neighbor.up) canConnect = true;
         }
         if (col > 0)
         {
-            MapCell neighbor = map[row, col - 1];
-            Card neighborCard = neighbor.GetCard();
-            if (neighborCard != null && card.left && neighborCard.right)
-                canConnect = true;
+            var neighbor = map[row, col - 1]?.GetCard();
+            if (neighbor != null && cardData.left && neighbor.right) canConnect = true;
         }
         if (col < map.GetLength(1) - 1)
         {
-            MapCell neighbor = map[row, col + 1];
-            Card neighborCard = neighbor.GetCard();
-            if (neighborCard != null && card.right && neighborCard.left)
-                canConnect = true;
+            var neighbor = map[row, col + 1]?.GetCard();
+            if (neighbor != null && cardData.right && neighbor.left) canConnect = true;
         }
 
         if (!canConnect)
         {
-            Debug.LogWarning("❌ 该卡无法连接到任意邻居");
+            PlayerController.DebugClient($"❌ 放置失败：({row},{col}) 无法连接到邻居路径");
             return;
         }
 
-        // ✅ 放置路径卡
+        int replacedIndex = GameManager.Instance.pendingCardIndex;
+
+        currentPlayer.CmdRequestPlaceCard(
+            netId,
+            cardData.cardName,
+            cardData.spriteName,
+            cardData.toolEffect,
+            cardData.cardType,
+            cardData.up, cardData.down, cardData.left, cardData.right,
+            cardData.blockedCenter,
+            cardData.isPathPassable,
+            replacedIndex);
+
+        GameManager.Instance.ClearPendingCard();
+
+        var checker = Object.FindFirstObjectByType<PathChecker>();
+        checker?.CheckWinCondition();
+
+        TurnManager.Instance.NextTurn();
+    }
+
+    public void PlaceCardLocally(string cardName, string spriteName, string toolEffect,
+                                 Card.CardType cardType,
+                                 bool up, bool down, bool left, bool right,
+                                 bool blockedCenter, bool isPassable)
+    {
+        Sprite sprite = GameManager.Instance.cardDeckManager.FindSpriteByName(spriteName);
+        if (sprite == null)
+        {
+            PlayerController.DebugClient($"⚠️ 无法找到图片 {spriteName}，无法显示卡牌");
+            return;
+        }
+
+        var cardData = new CardData
+        {
+            cardName = cardName,
+            spriteName = spriteName,
+            toolEffect = toolEffect,
+            cardType = cardType,
+            up = up,
+            down = down,
+            left = left,
+            right = right,
+            blockedCenter = blockedCenter,
+            isPathPassable = isPassable
+        };
+
         GameObject cardGO = Instantiate(GameManager.Instance.cardPrefab, transform);
-        cardGO.GetComponent<CardDisplay>().Init(card, sprite);
+        var display = cardGO.GetComponent<CardDisplay>();
+        display.Init(cardData, sprite);
+
         RectTransform rt = cardGO.GetComponent<RectTransform>();
         rt.anchorMin = Vector2.zero;
         rt.anchorMax = Vector2.one;
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
 
-        this.card = card;
-        this.cardDisplay = cardGO.GetComponent<CardDisplay>();
+        this.cardDisplay = display;
+        this.card = new Card(cardData);
         isOccupied = true;
 
-        // ✅ 替换手牌
-        var currentPlayer2 = GameManager.Instance.playerGenerator.allPlayers[GameManager.Instance.playerID - 1];
-        int replacedIndex = GameManager.Instance.pendingCardIndex;
-
-        if (replacedIndex >= 0 && replacedIndex < currentPlayer2.CardSlots.Length)
+        if (GameManager.Instance?.mapGenerator?.mapCells != null)
         {
-            Card newCard = GameManager.Instance.DrawCard();
-            currentPlayer2.CardSlots[replacedIndex] = newCard;
+            RevealNeighbors(row, col);
         }
         else
         {
-            Debug.LogError("❗替换失败：pendingCardIndex 超出范围");
+            PlayerController.DebugClient($"⚠️ mapCells 尚未初始化，跳过 RevealNeighbors ({row},{col})");
         }
 
-        GameManager.Instance.ClearPendingCard();
+        PlayerController.DebugClient($"✅ PlaceCardLocally 成功放置卡牌 ({row},{col}) → {cardName}");
+    }
 
-        Debug.Log($"🧩 玩家 {GameManager.Instance.playerID} 放置 [{card.cardName}] 于 ({row},{col})");
-
-        PathChecker checker = Object.FindFirstObjectByType<PathChecker>();
-        checker?.CheckWinCondition();
-
-        TurnManager.Instance.NextTurn();
-
-        Debug.Log($"🟢 玩家{GameManager.Instance.playerID} 当前手牌数：{currentPlayer2.CardSlots.Length}");
-        Debug.Log($"🃏 当前卡组剩余：{GameManager.Instance.cardDeck.Count}");
-        for (int i = 0; i < currentPlayer2.CardSlots.Length; i++)
+    public void PlaceCardServer(string cardName, string spriteName, string toolEffect,
+                                Card.CardType cardType,
+                                bool up, bool down, bool left, bool right,
+                                bool blockedCenter, bool isPassable)
+    {
+        var cardData = new CardData
         {
-            Debug.Log($"➡️ 手牌{i + 1}：{currentPlayer2.CardSlots[i]?.cardName ?? "空"}");
-        }
+            cardName = cardName,
+            spriteName = spriteName,
+            toolEffect = toolEffect,
+            cardType = cardType,
+            up = up,
+            down = down,
+            left = left,
+            right = right,
+            blockedCenter = blockedCenter,
+            isPathPassable = isPassable
+        };
 
-        RevealNeighbors(row, col);
+        this.card = new Card(cardData);
+        this.isOccupied = true;
+
+        if (GameManager.Instance?.mapGenerator?.mapCells != null)
+        {
+            RevealNeighbors(row, col);
+        }
+        else
+        {
+            PlayerController.DebugClient($"⚠️ PlaceCardServer → mapCells 尚未初始化，跳过 RevealNeighbors ({row},{col})");
+        }
     }
 
     public Card GetCard()
     {
-        if (!isOccupied || card == null || cardDisplay == null) return null;
+        if (!isOccupied || card == null || cardDisplay == null)
+            return null;
         return card;
-    }
-
-
-    public bool IsConnectedToNeighbor()
-    {
-        Card card = GetCard();
-        if (card == null) return false;
-
-        var map = GameManager.Instance.mapGenerator.mapCells;
-
-        if (row > 0)
-        {
-            Card neighbor = map[row - 1, col].GetCard();
-            if (neighbor != null && card.up && neighbor.down)
-                return true;
-        }
-        if (row < map.GetLength(0) - 1)
-        {
-            Card neighbor = map[row + 1, col].GetCard();
-            if (neighbor != null && card.down && neighbor.up)
-                return true;
-        }
-        if (col > 0)
-        {
-            Card neighbor = map[row, col - 1].GetCard();
-            if (neighbor != null && card.left && neighbor.right)
-                return true;
-        }
-        if (col < map.GetLength(1) - 1)
-        {
-            Card neighbor = map[row, col + 1].GetCard();
-            if (neighbor != null && card.right && neighbor.left)
-                return true;
-        }
-
-        return false;
     }
 
     private void RevealNeighbors(int r, int c)
     {
+        if (GameManager.Instance == null || GameManager.Instance.mapGenerator == null || GameManager.Instance.mapGenerator.mapCells == null)
+        {
+            PlayerController.DebugClient($"❌ RevealNeighbors 时 mapCells 未初始化，跳过 ({r},{c})");
+            return;
+        }
+
         var map = GameManager.Instance.mapGenerator.mapCells;
         int rows = map.GetLength(0);
         int cols = map.GetLength(1);
@@ -220,10 +291,15 @@ public class MapCell : MonoBehaviour
         {
             if (rr >= 0 && rr < rows && cc >= 0 && cc < cols)
             {
-                var cell = map[rr, cc];
-                cell.GetComponent<Image>().enabled = true;
+                if (map[rr, cc] != null)
+                {
+                    var image = map[rr, cc].GetComponent<Image>();
+                    if (image != null)
+                        image.enabled = true;
+                }
             }
         }
+
 
         TryReveal(r - 1, c);
         TryReveal(r + 1, c);
@@ -233,12 +309,8 @@ public class MapCell : MonoBehaviour
 
     public void RevealTerminal(Sprite faceSprite)
     {
-        if (card == null || cardDisplay == null)
-            return;
-
-        card.sprite = faceSprite;
-        cardDisplay.Init(card, faceSprite);
-
-        Debug.Log($"🎯 终点 ({row},{col}) 被翻开为：{faceSprite.name}");
+        if (cardDisplay == null) return;
+        cardDisplay.Init("Terminal", faceSprite);
+        PlayerController.DebugClient($"🪙 RevealTerminal: ({row},{col}) → 显示终点 sprite: {faceSprite.name}");
     }
 }

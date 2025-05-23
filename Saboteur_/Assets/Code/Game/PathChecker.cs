@@ -1,14 +1,18 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Mirror;
 
-public class PathChecker : MonoBehaviour
+public class PathChecker : NetworkBehaviour
 {
     private MapCell[,] map;
     private int rows, cols;
     private bool[,] visited;
 
+    // ✅ 只由服务器进行胜利判断
     public void CheckWinCondition()
     {
+        if (!isServer) return;
+
         map = GameManager.Instance.mapGenerator.mapCells;
         rows = map.GetLength(0);
         cols = map.GetLength(1);
@@ -67,10 +71,8 @@ public class PathChecker : MonoBehaviour
             return false;
         }
 
-        int playerID = GameManager.Instance.playerID;
-        Debug.Log($"🎉 玩家 {playerID} 成功连通终点 ({targetRow},{targetCol})，通过位置：({r},{c})");
+        Debug.Log($"🎉 终点 ({targetRow},{targetCol}) 已被成功连通，通过位置：({r},{c})");
 
-        // ✅ 使用终点真实位置，触发 RevealTerminalAt
         GameManager.Instance.mapGenerator.RevealTerminalAt(targetRow, targetCol);
         return true;
     }
@@ -78,7 +80,7 @@ public class PathChecker : MonoBehaviour
     private bool IsReachableFromStart(int targetR, int targetC)
     {
         visited = new bool[rows, cols];
-        return DFS(2, 1, targetR, targetC);
+        return DFS(2, 1, targetR, targetC); // 起点固定为 (2,1)
     }
 
     private bool DFS(int r, int c, int targetR, int targetC)
