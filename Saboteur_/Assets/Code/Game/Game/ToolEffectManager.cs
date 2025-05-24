@@ -75,15 +75,23 @@ public class ToolEffectManager : MonoBehaviour
             case "BreakMinecart": target.hasMineCart = false; break;
         }
 
-        gameManager.cardDeckManager.ReplaceUsedCard(pendingBreakCardIndex);
-        ClearPendingBreak();
+        if (pendingBreakCardIndex >= 0)
+        {
+            var card = localPlayer.hand[pendingBreakCardIndex];
+            localPlayer.CmdRequestPlaceCard(0,
+                card.cardName, card.spriteName, card.toolEffect, card.cardType,
+                false, false, false, false, false, false,
+                pendingBreakCardIndex);
+        }
 
+        ClearPendingBreak();
         playerUIManager.UpdateAllUI();
         TurnManager.Instance.NextTurn();
     }
 
     public void ApplyRepairEffectTo(PlayerController target)
     {
+        var localPlayer = NetworkClient.connection.identity.GetComponent<PlayerController>();
         bool didRepair = false;
 
         if (pendingRepairEffect == "RepairLamp" && !target.hasLamp)
@@ -128,9 +136,16 @@ public class ToolEffectManager : MonoBehaviour
             return;
         }
 
-        gameManager.cardDeckManager.ReplaceUsedCard(pendingRepairCardIndex);
-        ClearPendingRepair();
+        if (pendingRepairCardIndex >= 0)
+        {
+            var card = localPlayer.hand[pendingRepairCardIndex];
+            localPlayer.CmdRequestPlaceCard(0,
+                card.cardName, card.spriteName, card.toolEffect, card.cardType,
+                false, false, false, false, false, false,
+                pendingRepairCardIndex);
+        }
 
+        ClearPendingRepair();
         playerUIManager.UpdateAllUI();
         TurnManager.Instance.NextTurn();
     }
@@ -160,4 +175,3 @@ public class ToolEffectManager : MonoBehaviour
         if (textToolAlreadyRepaired != null) textToolAlreadyRepaired.SetActive(false);
     }
 }
-

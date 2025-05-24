@@ -10,7 +10,6 @@ public class CollapseManager : MonoBehaviour
     public void ApplyCollapseTo(MapCell cell)
     {
         var state = cell.GetComponent<MapCellState>();
-        var ui = cell.GetComponent<MapCellUI>();
 
         Debug.Log($"🧨 使用塌方卡：格子({state.row}, {state.col})");
 
@@ -20,38 +19,24 @@ public class CollapseManager : MonoBehaviour
             return;
         }
 
-        // ✅ 清除格子中路径卡的逻辑状态与显示
-        state.card = null;
-        state.isOccupied = false;
-
-        if (ui.cardDisplay != null)
-        {
-            Destroy(ui.cardDisplay.gameObject);
-            ui.cardDisplay = null;
-        }
-
-        // ✅ 恢复格子背景（图像恢复为灰色背景）
-        var img = cell.GetComponent<Image>();
-        if (img != null)
-        {
-            img.sprite = null;
-            img.color = new Color32(0, 0, 0, 100);
-        }
-
-        // ✅ 替换手牌（使用 Command）
-        int index = GameManager.Instance.pendingCardIndex;
+        // ✅ 通过服务端广播地图格子清除状态
         var player = NetworkClient.connection.identity.GetComponent<PlayerController>();
+        player.CmdCollapseMapCell(cell.netId);
+
+        // ✅ 使用塌方卡（不放置卡，仅销毁并补发）
+        int index = GameManager.Instance.pendingCardIndex;
         if (index >= 0)
         {
-            player.CmdReplaceUsedCard(index);
+            player.CmdUseCollapseCardOnly(index);
         }
         else
         {
-            Debug.LogError("❗ 塌方卡替换失败：索引越界");
+            Debug.LogError("❗ 塌方卡使用失败：pendingCardIndex 无效");
         }
 
         GameManager.Instance.ClearPendingCard();
         TurnManager.Instance.NextTurn();
+
         Debug.Log($"✅ 清除完成，格子({state.row},{state.col}) 现在可以重新放牌");
     }
 }

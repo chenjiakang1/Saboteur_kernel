@@ -194,30 +194,14 @@ public class CardDeckManager : MonoBehaviour
         return card;
     }
 
-    public void ReplaceUsedCard(int index)
-    {
-        var player = NetworkClient.connection?.identity?.GetComponent<PlayerController>();
-        if (player == null) return;
-
-        if (index >= 0 && index < player.syncCardSlots.Count)
-        {
-            Card newCard = DrawCard();
-            if (newCard != null)
-                player.syncCardSlots[index] = new CardData(newCard);
-        }
-    }
-
-    // ✅ 手牌展示时通过 spriteName 查找 sprite
     public Sprite FindSpriteByName(string spriteName)
     {
-        // 1. 卡组中找（性能更高）
         foreach (var card in cardDeck)
         {
             if (card.sprite != null && card.sprite.name == spriteName)
                 return card.sprite;
         }
 
-        // 2. 路径卡组 spriteGroups 查找
         foreach (var list in spriteGroups.Values)
         {
             foreach (var s in list)
@@ -227,17 +211,14 @@ public class CardDeckManager : MonoBehaviour
             }
         }
 
-        // 3. ✅ 额外检查阻断卡、工具卡、塌方卡独立字段
         Sprite[] extraSprites = new Sprite[]
         {
-        blockedSprite_L, blockedSprite_D, blockedSprite_LR, blockedSprite_LD,
-        blockedSprite_UD, blockedSprite_DR, blockedSprite_ULR, blockedSprite_ULD, blockedSprite_UDLR,
-
-        breakLampSprite, breakPickaxeSprite, breakMinecartSprite,
-        repairLampSprite, repairPickaxeSprite, repairMinecartSprite,
-        repairPickaxeAndMinecartSprite, repairPickaxeAndLampSprite, repairMinecartAndLampSprite,
-
-        collapseCardSprite
+            blockedSprite_L, blockedSprite_D, blockedSprite_LR, blockedSprite_LD,
+            blockedSprite_UD, blockedSprite_DR, blockedSprite_ULR, blockedSprite_ULD, blockedSprite_UDLR,
+            breakLampSprite, breakPickaxeSprite, breakMinecartSprite,
+            repairLampSprite, repairPickaxeSprite, repairMinecartSprite,
+            repairPickaxeAndMinecartSprite, repairPickaxeAndLampSprite, repairMinecartAndLampSprite,
+            collapseCardSprite
         };
 
         foreach (var s in extraSprites)
@@ -249,5 +230,4 @@ public class CardDeckManager : MonoBehaviour
         Debug.LogWarning("❓ 未找到 spriteName: " + spriteName);
         return null;
     }
-
 }

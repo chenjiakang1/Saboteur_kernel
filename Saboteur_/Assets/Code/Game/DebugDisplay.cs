@@ -26,7 +26,7 @@ public class DebugDisplay : MonoBehaviour
         {
             var player = NetworkClient.connection.identity.GetComponent<PlayerController>();
             log += $" Player: {player.playerName}\n";
-            log += $" Hand Cards: {player.syncCardSlots.Count}\n";
+            log += $" Hand Cards: {player.hand.Count}\n";
             log += $" Pickaxe: {(player.hasPickaxe ? "OK" : "Broken")}, ";
             log += $" Minecart: {(player.hasMineCart ? "OK" : "Broken")}, ";
             log += $" Lamp: {(player.hasLamp ? "OK" : "Broken")}\n";
@@ -54,5 +54,4 @@ public class DebugDisplay : MonoBehaviour
 
         debugText.text = log;
     }
-
 }

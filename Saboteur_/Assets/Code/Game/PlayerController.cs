@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using Mirror;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerController : NetworkBehaviour
 {
@@ -12,25 +14,29 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public bool hasMineCart = true;
     [SyncVar] public bool hasLamp = true;
 
-    public readonly SyncList<CardData> syncCardSlots = new SyncList<CardData>();
+    public readonly SyncList<CardData> hand = new SyncList<CardData>();
 
     public override void OnStartLocalPlayer()
     {
-        Debug.Log("[客户端] OnStartLocalPlayer 被调用");
+        base.OnStartLocalPlayer();
+        Debug.Log("[客户端] OnStartLocalPlayer");
         CmdInit("Player" + netId);
-        Invoke(nameof(RefreshLocalHand), 0.2f);
+        hand.Callback += OnHandChanged;
+        GameManager.Instance.playerHandManager.ShowHand(hand);
     }
 
     public override void OnStartAuthority()
     {
-        Debug.Log("✅ PlayerController 获得 authority 权限");
+        base.OnStartAuthority();
         LocalInstance = this;
+        Debug.Log("[客户端] 获得 authority 权限");
     }
 
-    private void RefreshLocalHand()
+    private void OnHandChanged(SyncList<CardData>.Operation op, int index, CardData oldItem, CardData newItem)
     {
-        Debug.Log("[客户端] 调用 ShowLocalPlayerHand");
-        GameManager.Instance.playerHandManager.ShowLocalPlayerHand();
+        if (!isLocalPlayer) return;
+        Debug.Log($"[客户端] 手牌列表变更({op}) → 刷新 UI");
+        GameManager.Instance.playerHandManager.ShowHand(hand);
     }
 
     [Command]
@@ -44,23 +50,13 @@ public class PlayerController : NetworkBehaviour
         hasLamp = true;
         hasMineCart = true;
 
-        syncCardSlots.Clear();
+        hand.Clear();
         for (int i = 0; i < 5; i++)
         {
             var card = GameManager.Instance.cardDeckManager.DrawCard();
             if (card != null)
-                syncCardSlots.Add(new CardData(card));
+                hand.Add(new CardData(card));
         }
-    }
-
-    [Command]
-    public void CmdReplaceUsedCard(int index)
-    {
-        Debug.Log($"[服务端] 替换第 {index} 张手牌");
-        if (index < 0 || index >= syncCardSlots.Count) return;
-        var newCard = GameManager.Instance.cardDeckManager.DrawCard();
-        if (newCard != null)
-            syncCardSlots[index] = new CardData(newCard);
     }
 
     [Command]
@@ -68,24 +64,17 @@ public class PlayerController : NetworkBehaviour
         string cardName, string spriteName, string toolEffect,
         Card.CardType cardType,
         bool up, bool down, bool left, bool right,
-        bool blockedCenter, bool isPassable,
-        int replacedIndex)
+        bool blockedCenter,
+        bool isPathPassable,
+        int handIndex)
     {
         Debug.Log("[服务端] 收到 CmdRequestPlaceCard");
-
         if (!NetworkServer.spawned.TryGetValue(cellNetId, out NetworkIdentity identity))
         {
-            Debug.LogWarning("[服务端] 找不到 CellNetId 对象: " + cellNetId);
+            Debug.LogWarning("[服务端] 找不到 CellNetId: " + cellNetId);
             return;
         }
-
         var cell = identity.GetComponent<MapCell>();
-        if (cell == null)
-        {
-            Debug.LogWarning("[服务端] 找不到 MapCell");
-            return;
-        }
-
         var state = cell.GetComponent<MapCellState>();
         if (state.isOccupied || state.isBlocked)
         {
@@ -93,25 +82,25 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
-        Debug.Log("[服务端] 成功识别 Cell，广播 ClientRpc");
         RpcBroadcastPlaceCard(cellNetId, cardName, spriteName, toolEffect,
-                              cardType, up, down, left, right, blockedCenter, isPassable);
+                              cardType, up, down, left, right, blockedCenter, isPathPassable);
 
         cell.PlaceCardServer(cardName, spriteName, toolEffect, cardType,
-                             up, down, left, right, blockedCenter, isPassable);
+                             up, down, left, right, blockedCenter, isPathPassable);
 
-        // ✅ 在服务端执行胜负判断逻辑
-        var checker = Object.FindFirstObjectByType<PathChecker>();
-        if (checker != null)
+        Object.FindFirstObjectByType<PathChecker>()?.CheckWinCondition();
+
+        if (handIndex >= 0 && handIndex < hand.Count)
         {
-            checker.CheckWinCondition();
+            hand.RemoveAt(handIndex);
+            var newCard = GameManager.Instance.cardDeckManager.DrawCard();
+            if (newCard != null)
+                hand.Insert(handIndex, new CardData(newCard));
         }
         else
         {
-            Debug.LogWarning("⚠️ 未找到 PathChecker 实例，无法执行胜负判断");
+            Debug.LogWarning("[服务端] handIndex 超出范围: " + handIndex);
         }
-
-        CmdReplaceUsedCard(replacedIndex);
     }
 
     [ClientRpc]
@@ -130,20 +119,7 @@ public class PlayerController : NetworkBehaviour
         }
         else
         {
-            Debug.LogWarning("[客户端] 无法找到 netId = " + cellNetId);
-        }
-    }
-
-    // ✅ 客户端调试输出调用（例如点击无效、工具破损等）
-    public static void DebugClient(string msg)
-    {
-        if (LocalInstance != null)
-        {
-            LocalInstance.CmdSendDebug(msg);
-        }
-        else
-        {
-            Debug.LogWarning("❗ LocalInstance 为 null，无法发送调试信息：" + msg);
+            Debug.LogWarning("[客户端] 找不到 netId = " + cellNetId);
         }
     }
 
@@ -152,4 +128,71 @@ public class PlayerController : NetworkBehaviour
     {
         Debug.Log($"🛰️ [Build客户端调试] {msg}");
     }
+
+    [Command]
+    public void CmdUseCollapseCardOnly(int handIndex)
+    {
+        Debug.Log($"[服务端] 使用塌方卡，仅移除手牌 index = {handIndex}");
+
+        if (handIndex < 0 || handIndex >= hand.Count)
+        {
+            Debug.LogWarning("[服务端] handIndex 越界，忽略操作");
+            return;
+        }
+
+        hand.RemoveAt(handIndex);
+
+        var newCard = GameManager.Instance.cardDeckManager.DrawCard();
+        if (newCard != null)
+        {
+            hand.Insert(handIndex, new CardData(newCard));
+            Debug.Log("[服务端] 塌方卡使用成功，补发新卡");
+        }
+        else
+        {
+            Debug.Log("[服务端] 塌方卡使用成功，但牌堆为空，不再补牌");
+        }
+    }
+
+    [Command]
+    public void CmdCollapseMapCell(uint cellNetId)
+    {
+        if (!NetworkServer.spawned.TryGetValue(cellNetId, out NetworkIdentity identity)) return;
+        var cell = identity.GetComponent<MapCell>();
+        var state = cell.GetComponent<MapCellState>();
+
+        state.card = null;
+        state.isOccupied = false;
+
+        RpcCollapseMapCell(cellNetId);
+    }
+
+    [ClientRpc]
+    void RpcCollapseMapCell(uint cellNetId)
+    {
+        if (!NetworkClient.spawned.TryGetValue(cellNetId, out NetworkIdentity identity)) return;
+        var cell = identity.GetComponent<MapCell>();
+        var ui = cell.GetComponent<MapCellUI>();
+        var img = cell.GetComponent<Image>();
+
+        if (ui.cardDisplay != null)
+        {
+            Destroy(ui.cardDisplay.gameObject);
+            ui.cardDisplay = null;
+        }
+
+        if (img != null)
+        {
+            img.sprite = null;
+            img.color = new Color32(0, 0, 0, 100);
+        }
+    }
+    public static void DebugClient(string msg)
+    {
+        if (LocalInstance != null)
+            LocalInstance.CmdSendDebug(msg);
+        else
+            Debug.LogWarning("❗ LocalInstance 为 null，无法发送调试信息：" + msg);
+    }
+    
 }

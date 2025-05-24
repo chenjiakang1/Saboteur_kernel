@@ -28,7 +28,7 @@ public class TurnManager : MonoBehaviour
 
             foreach (var player in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
             {
-                if (player.syncCardSlots.Count > 0)
+                if (player.hand.Count > 0)
                 {
                     allHandCardsEmpty = false;
                     break;
@@ -47,7 +47,5 @@ public class TurnManager : MonoBehaviour
     {
         if (turnText != null)
             turnText.text = $"Player {currentPlayer}'s Turn";
-
-        GameManager.Instance.playerHandManager.ShowLocalPlayerHand();
     }
 }

@@ -1,7 +1,7 @@
 using UnityEngine;
 using Mirror;
 
-public class GameManager : MonoBehaviour
+public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance;
 
@@ -40,13 +40,9 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private void Start()
+    public override void OnStartServer()
     {
-        // ✅ 安全检查
-        if (cardDeckManager == null) Debug.LogError("❌ cardDeckManager 未赋值");
-        if (mapGenerator == null) Debug.LogError("❌ mapGenerator 未赋值");
-        if (playerHandManager == null) Debug.LogError("❌ playerHandManager 未赋值");
-        if (playerUIManager == null) Debug.LogError("❌ playerUIManager 未赋值");
+        base.OnStartServer();
 
         // ✅ 初始化卡组
         cardDeckManager?.InitCardDeck();
@@ -62,17 +58,19 @@ public class GameManager : MonoBehaviour
             Debug.LogWarning("⚠️ TurnManager 尚未初始化，totalPlayers 设置跳过");
         }
 
-        // ✅ 初始化 UI
-        playerUIManager?.GenerateUI();
-
-        // ✅ 显示本地手牌
-        if (NetworkClient.active || NetworkServer.active)
+        // ✅ 给每个玩家发 5 张初始牌
+        foreach (var player in allPlayers)
         {
-            playerHandManager?.ShowLocalPlayerHand();
+            player.hand.Clear();
+            for (int i = 0; i < 5; i++)
+            {
+                var card = cardDeckManager.DrawCard();
+                if (card != null)
+                    player.hand.Add(new CardData(card));
+            }
         }
 
         // ✅ 调试输出
-        Debug.Log($"🃏 总卡牌数量：{cardDeckManager.cardDeck.Count + allPlayers.Length * 5}");
         Debug.Log($"🃏 剩余抽牌堆数量：{cardDeckManager.remainingCards}");
     }
 
