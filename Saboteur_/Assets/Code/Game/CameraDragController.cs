@@ -1,69 +1,134 @@
+using Mirror;
 using UnityEngine;
+using UnityEngine.UI;
 
-public class CameraDragController : MonoBehaviour
+public partial class PlayerController
 {
-    public float dragSpeed = 2f;
-    public float zoomSpeed = 5f;
-    public float minZoom = 3f;
-    public float maxZoom = 10f;
-    public Transform boundRoot; // 绑定Back父物体
-
-    private Vector3 dragOrigin;
-    private Vector2 minBound;
-    private Vector2 maxBound;
-    private Camera cam;
-
-    void Start()
+    [Command]
+    public void CmdRequestPlaceCard(uint cellNetId, string cardName, string spriteName, string toolEffect,
+        Card.CardType cardType, bool up, bool down, bool left, bool right, bool blockedCenter,
+        bool isPathPassable, int handIndex)
     {
-        cam = Camera.main;
+        Debug.Log("📦 [服务端] CmdRequestPlaceCard 被调用");
 
-        if (boundRoot != null)
+        if (cellNetId != 0 && NetworkServer.spawned.TryGetValue(cellNetId, out var identity))
         {
-            Bounds totalBounds = new Bounds(boundRoot.position, Vector3.zero);
-            foreach (Renderer r in boundRoot.GetComponentsInChildren<Renderer>())
-            {
-                totalBounds.Encapsulate(r.bounds);
-            }
+            var cell = identity.GetComponent<MapCell>();
+            var state = cell.GetComponent<MapCellState>();
+            if (state.isOccupied || state.isBlocked) return;
 
-            minBound = totalBounds.min;
-            maxBound = totalBounds.max;
+            RpcBroadcastPlaceCard(cellNetId, cardName, spriteName, toolEffect,
+                cardType, up, down, left, right, blockedCenter, isPathPassable);
+
+            cell.PlaceCardServer(cardName, spriteName, toolEffect, cardType,
+                up, down, left, right, blockedCenter, isPathPassable);
+        }
+
+        if (handIndex >= 0 && handIndex < hand.Count)
+        {
+            hand.RemoveAt(handIndex);
+            var newCard = GameManager.Instance.cardDeckManager.DrawCard();
+            if (newCard != null)
+                hand.Insert(handIndex, new CardData(newCard));
+        }
+
+        Object.FindFirstObjectByType<PathChecker>()?.CheckWinCondition();
+    }
+
+    [ClientRpc]
+    public void RpcBroadcastPlaceCard(uint cellNetId, string cardName, string spriteName, string toolEffect,
+        Card.CardType cardType, bool up, bool down, bool left, bool right,
+        bool blockedCenter, bool isPassable)
+    {
+        if (NetworkClient.spawned.TryGetValue(cellNetId, out var identity))
+        {
+            var cell = identity.GetComponent<MapCell>();
+            cell?.PlaceCardLocally(cardName, spriteName, toolEffect, cardType,
+                up, down, left, right, blockedCenter, isPassable);
         }
     }
 
-    void Update()
+    [Command]
+    public void CmdUseCollapseCardOnly(int handIndex)
     {
-        HandleDrag();
-        HandleZoom();
+        if (handIndex < 0 || handIndex >= hand.Count) return;
+
+        hand.RemoveAt(handIndex);
+
+        var newCard = GameManager.Instance.cardDeckManager.DrawCard();
+        if (newCard != null)
+            hand.Insert(handIndex, new CardData(newCard));
     }
 
-    void HandleDrag()
+    [Command]
+    public void CmdCollapseMapCell(uint cellNetId)
     {
-        if (Input.GetMouseButtonDown(0))
+        if (!NetworkServer.spawned.TryGetValue(cellNetId, out var identity)) return;
+        var cell = identity.GetComponent<MapCell>();
+        var state = cell.GetComponent<MapCellState>();
+
+        state.card = null;
+        state.isOccupied = false;
+
+        RpcCollapseMapCell(cellNetId);
+    }
+
+    [ClientRpc]
+    void RpcCollapseMapCell(uint cellNetId)
+    {
+        if (!NetworkClient.spawned.TryGetValue(cellNetId, out var identity)) return;
+        var cell = identity.GetComponent<MapCell>();
+        var ui = cell.GetComponent<MapCellUI>();
+        var img = cell.GetComponent<Image>();
+
+        if (ui.cardDisplay != null) Destroy(ui.cardDisplay.gameObject);
+        ui.cardDisplay = null;
+
+        if (img != null)
         {
-            dragOrigin = cam.ScreenToWorldPoint(Input.mousePosition);
-        }
-
-        if (Input.GetMouseButton(0))
-        {
-            Vector3 difference = dragOrigin - cam.ScreenToWorldPoint(Input.mousePosition);
-            Vector3 newPos = cam.transform.position + difference;
-
-            // 限制相机位置在背景范围内
-            newPos.x = Mathf.Clamp(newPos.x, minBound.x, maxBound.x);
-            newPos.y = Mathf.Clamp(newPos.y, minBound.y, maxBound.y);
-            newPos.z = cam.transform.position.z;
-
-            cam.transform.position = newPos;
+            img.sprite = null;
+            img.color = new Color32(0, 0, 0, 100);
         }
     }
 
-    void HandleZoom()
+    [Command]
+    public void CmdApplyToolEffect(uint targetNetId, string effectName)
     {
-        float scroll = Input.GetAxis("Mouse ScrollWheel");
-        if (Mathf.Abs(scroll) > 0.01f)
+        if (!NetworkServer.spawned.TryGetValue(targetNetId, out var identity)) return;
+        var target = identity.GetComponent<PlayerController>();
+        if (target == null) return;
+
+        bool didApply = false;
+
+        switch (effectName)
         {
-            float newSize = cam.orthographicSize - scroll * zoomSpeed;
-            cam.orthographicSize = Mathf.Clamp(newSize, minZoom, maxZoom);
+            case "BreakLamp": target.hasLamp = false; didApply = true; break;
+            case "BreakPickaxe": target.hasPickaxe = false; didApply = true; break;
+            case "BreakMinecart": target.hasMineCart = false; didApply = true; break;
+            case "RepairLamp": target.hasLamp = true; didApply = true; break;
+            case "RepairPickaxe": target.hasPickaxe = true; didApply = true; break;
+            case "RepairMinecart": target.hasMineCart = true; didApply = true; break;
+            case "RepairPickaxeAndMinecart": target.hasPickaxe = true; target.hasMineCart = true; didApply = true; break;
+            case "RepairPickaxeAndLamp": target.hasPickaxe = true; target.hasLamp = true; didApply = true; break;
+            case "RepairMinecartAndLamp": target.hasMineCart = true; target.hasLamp = true; didApply = true; break;
         }
+
+        if (didApply)
+        {
+            GameManager.Instance.playerUIManager.UpdateAllUI();
+            RpcUpdateAllClientUI();
+        }
+    }
+
+    [ClientRpc]
+    void RpcUpdateAllClientUI()
+    {
+        GameManager.Instance.playerUIManager?.UpdateAllUI();
+    }
+
+    [Command]
+    public void CmdSendDebug(string msg)
+    {
+        Debug.Log($"🛰️ [Build客户端调试] {msg}");
     }
 }

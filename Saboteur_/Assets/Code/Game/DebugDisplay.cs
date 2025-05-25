@@ -49,7 +49,7 @@ public class DebugDisplay : MonoBehaviour
 
         if (TurnManager.Instance != null)
         {
-            log += $" Turn: Player #{TurnManager.Instance.currentPlayer}\n";
+            log += $" Turn: Player #{TurnManager.Instance.CurrentPlayerTurnIndex}\n";
         }
 
         debugText.text = log;

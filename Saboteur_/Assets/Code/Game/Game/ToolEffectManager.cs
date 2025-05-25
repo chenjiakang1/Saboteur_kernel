@@ -36,6 +36,11 @@ public class ToolEffectManager : MonoBehaviour
     public void ApplyBreakEffectTo(PlayerController target)
     {
         var localPlayer = PlayerController.LocalInstance;
+        if (!localPlayer.isMyTurn)
+        {
+            Debug.Log("⛔ 不是你的回合，不能使用破坏卡！");
+            return;
+        }
 
         if (target == localPlayer)
         {
@@ -46,7 +51,6 @@ public class ToolEffectManager : MonoBehaviour
             return;
         }
 
-        // ✅ 客户端先判断目标是否已经损坏，给提示，不浪费卡
         bool alreadyBroken =
             (pendingBreakEffect == "BreakLamp" && !target.hasLamp) ||
             (pendingBreakEffect == "BreakPickaxe" && !target.hasPickaxe) ||
@@ -63,10 +67,8 @@ public class ToolEffectManager : MonoBehaviour
             return;
         }
 
-        // ✅ 发给服务端执行效果
         localPlayer.CmdApplyToolEffect(target.netId, pendingBreakEffect);
 
-        // ✅ 消耗卡牌
         if (pendingBreakCardIndex >= 0)
         {
             var card = localPlayer.hand[pendingBreakCardIndex];
@@ -83,8 +85,12 @@ public class ToolEffectManager : MonoBehaviour
     public void ApplyRepairEffectTo(PlayerController target)
     {
         var localPlayer = PlayerController.LocalInstance;
+        if (!localPlayer.isMyTurn)
+        {
+            Debug.Log("⛔ 不是你的回合，不能使用修复卡！");
+            return;
+        }
 
-        // ✅ 客户端先判断目标是否已修复
         bool alreadyRepaired = false;
 
         switch (pendingRepairEffect)
@@ -108,10 +114,8 @@ public class ToolEffectManager : MonoBehaviour
             return;
         }
 
-        // ✅ 发给服务端执行效果
         localPlayer.CmdApplyToolEffect(target.netId, pendingRepairEffect);
 
-        // ✅ 消耗卡牌
         if (pendingRepairCardIndex >= 0)
         {
             var card = localPlayer.hand[pendingRepairCardIndex];
@@ -123,22 +127,6 @@ public class ToolEffectManager : MonoBehaviour
 
         ClearPendingRepair();
         TurnManager.Instance.NextTurn();
-    }
-
-    private void EnsureUIInitialized()
-    {
-        var uiManager = GameManager.Instance.playerUIManager;
-        if (uiManager == null) return;
-
-        if (uiManager.playerUIPanelParent.childCount == 0)
-        {
-            Debug.Log("🧩 未检测到玩家 UI，重新生成！");
-            uiManager.GenerateUI();
-        }
-        else
-        {
-            uiManager.UpdateAllUI();
-        }
     }
 
     public void ClearPendingBreak()

@@ -1,5 +1,7 @@
 using UnityEngine;
 using Mirror;
+using System.Linq;
+using System.Collections.Generic;
 
 public class GameManager : NetworkBehaviour
 {
@@ -31,7 +33,7 @@ public class GameManager : NetworkBehaviour
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject); // ✅ 保证 Build 客户端 GameManager 不会销毁
+            DontDestroyOnLoad(gameObject);
         }
         else
         {
@@ -43,23 +45,28 @@ public class GameManager : NetworkBehaviour
     public override void OnStartServer()
     {
         base.OnStartServer();
-
-        // ✅ 初始化卡组
         cardDeckManager?.InitCardDeck();
 
-        // ✅ 初始化玩家数量
-        var allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-        if (TurnManager.Instance != null)
+        // 延迟初始化，以确保玩家已 Spawn 完成
+        Invoke(nameof(InitPlayersAfterDelay), 0.5f);
+    }
+
+    private void InitPlayersAfterDelay()
+    {
+        var sortedPlayers = Object.FindObjectsByType<PlayerController>(FindObjectsSortMode.None)
+            .OrderBy(p => p.netId)
+            .ToList();
+
+        Debug.Log($"🧪 InitPlayersAfterDelay：共找到 {sortedPlayers.Count} 名玩家");
+
+        foreach (var p in sortedPlayers)
         {
-            TurnManager.Instance.totalPlayers = allPlayers.Length;
-        }
-        else
-        {
-            Debug.LogWarning("⚠️ TurnManager 尚未初始化，totalPlayers 设置跳过");
+            Debug.Log($"👤 Player found: netId={p.netId}, isLocalPlayer={p.isLocalPlayer}, isServer={p.isServer}");
         }
 
-        // ✅ 给每个玩家发 5 张初始牌
-        foreach (var player in allPlayers)
+        // 不再调用 TurnManager.InitTurnOrder → 注册逻辑已交由 PlayerController.OnStartServer 执行
+
+        foreach (var player in sortedPlayers)
         {
             player.hand.Clear();
             for (int i = 0; i < 5; i++)
@@ -70,10 +77,7 @@ public class GameManager : NetworkBehaviour
             }
         }
 
-        // ✅ 延迟通知客户端生成玩家 UI 面板
         Invoke(nameof(CallClientGenerateUI), 1.0f);
-
-        Debug.Log($"🃏 剩余抽牌堆数量：{cardDeckManager.remainingCards}");
     }
 
     private void CallClientGenerateUI()

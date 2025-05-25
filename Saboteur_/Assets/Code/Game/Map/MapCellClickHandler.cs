@@ -1,4 +1,3 @@
-// MapCellClickHandler.cs
 using UnityEngine;
 using Mirror;
 
@@ -20,6 +19,15 @@ public class MapCellClickHandler : MonoBehaviour
 
     public void OnClick()
     {
+        Debug.Log("🖱️ [MapCellClickHandler] 格子被点击");
+
+        var currentPlayer = PlayerController.LocalInstance;
+        if (!currentPlayer.isMyTurn)
+        {
+            Debug.Log("⛔ 不是你的回合，不能放置卡牌！");
+            return;
+        }
+
         PlayerController.DebugClient($"🟪 点击地图格子 ({state.row},{state.col}) → isBlocked: {state.isBlocked}, isOccupied: {state.isOccupied}");
 
         var pending = GameManager.Instance.pendingCard;
@@ -51,8 +59,6 @@ public class MapCellClickHandler : MonoBehaviour
             return;
         }
 
-        var cardData = pending.Value;
-        var currentPlayer = PlayerController.LocalInstance;
         if (currentPlayer == null)
         {
             PlayerController.DebugClient("❌ LocalInstance 为空，无法出牌");
@@ -60,7 +66,7 @@ public class MapCellClickHandler : MonoBehaviour
         }
 
         // 工具卡限制：必须修复后才能出路径卡
-        if (cardData.cardType == Card.CardType.Path &&
+        if (pending.Value.cardType == Card.CardType.Path &&
             (!currentPlayer.hasLamp || !currentPlayer.hasPickaxe || !currentPlayer.hasMineCart))
         {
             var toolUI = GameManager.Instance.toolEffectManager;
@@ -80,22 +86,22 @@ public class MapCellClickHandler : MonoBehaviour
         if (state.row > 0)
         {
             var neighbor = map[state.row - 1, state.col]?.GetCard();
-            if (neighbor != null && cardData.up && neighbor.down) canConnect = true;
+            if (neighbor != null && pending.Value.up && neighbor.down) canConnect = true;
         }
         if (state.row < map.GetLength(0) - 1)
         {
             var neighbor = map[state.row + 1, state.col]?.GetCard();
-            if (neighbor != null && cardData.down && neighbor.up) canConnect = true;
+            if (neighbor != null && pending.Value.down && neighbor.up) canConnect = true;
         }
         if (state.col > 0)
         {
             var neighbor = map[state.row, state.col - 1]?.GetCard();
-            if (neighbor != null && cardData.left && neighbor.right) canConnect = true;
+            if (neighbor != null && pending.Value.left && neighbor.right) canConnect = true;
         }
         if (state.col < map.GetLength(1) - 1)
         {
             var neighbor = map[state.row, state.col + 1]?.GetCard();
-            if (neighbor != null && cardData.right && neighbor.left) canConnect = true;
+            if (neighbor != null && pending.Value.right && neighbor.left) canConnect = true;
         }
 
         if (!canConnect)
@@ -104,25 +110,23 @@ public class MapCellClickHandler : MonoBehaviour
             return;
         }
 
-        // 发送出牌请求给服务端
+        // ✅ 出牌请求
         int replacedIndex = GameManager.Instance.pendingCardIndex;
 
         currentPlayer.CmdRequestPlaceCard(
             net.netId,
-            cardData.cardName,
-            cardData.spriteName,
-            cardData.toolEffect,
-            cardData.cardType,
-            cardData.up, cardData.down, cardData.left, cardData.right,
-            cardData.blockedCenter,
-            cardData.isPathPassable,
+            pending.Value.cardName,
+            pending.Value.spriteName,
+            pending.Value.toolEffect,
+            pending.Value.cardType,
+            pending.Value.up, pending.Value.down, pending.Value.left, pending.Value.right,
+            pending.Value.blockedCenter,
+            pending.Value.isPathPassable,
             replacedIndex);
 
         GameManager.Instance.ClearPendingCard();
 
-        //var checker = Object.FindFirstObjectByType<PathChecker>();
-        //checker?.CheckWinCondition();
-
-        TurnManager.Instance.NextTurn();
+        // ✅ 由客户端指令服务端执行轮换
+        currentPlayer.CmdEndTurn();
     }
 }
