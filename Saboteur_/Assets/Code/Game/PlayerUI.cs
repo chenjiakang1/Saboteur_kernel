@@ -36,15 +36,31 @@ public class PlayerUI : MonoBehaviour
     public void SetPlayer(PlayerController player)
     {
         this.player = player;
+
+        Debug.Log($"[PlayerUI] SetPlayer 被调用：playerName={player.playerName}, netId={player.netId}");
+
+        if (nameText == null)
+        {
+            Debug.LogWarning("[PlayerUI] nameText 未在 Inspector 中绑定，尝试自动查找...");
+            nameText = GetComponentInChildren<TextMeshProUGUI>();
+        }
+
+        if (nameText != null)
+        {
+            nameText.text = $"ID: {player.netId}";
+            Debug.Log($"[PlayerUI] 设置 nameText.text 成功 → {nameText.text}");
+        }
+        else
+        {
+            Debug.LogError("[PlayerUI] ❌ 无法找到 nameText 组件，UI 不会显示 ID");
+        }
+
         UpdateUI();
     }
 
     public void UpdateUI()
     {
         if (player == null) return;
-
-        if (nameText != null)
-            nameText.text = player.playerName;
 
         pickaxeImage.sprite = player.hasPickaxe ? pickaxeNormal : pickaxeDisabled;
         minecartImage.sprite = player.hasMineCart ? minecartNormal : minecartDisabled;
@@ -53,22 +69,27 @@ public class PlayerUI : MonoBehaviour
 
     public void OnClickRandomBreakTool()
     {
-        if (player == null || !player.isLocalPlayer) return;
+        if (player == null) return;
+
+        // 获取本地玩家
+        var localPlayer = PlayerController.LocalInstance;
+        if (localPlayer == null) return;
+
+        Debug.Log($"[点击UI] 目标玩家 netId = {player.netId}, 本地玩家 netId = {localPlayer.netId}");
 
         var toolEffect = GameManager.Instance.toolEffectManager;
 
         if (!string.IsNullOrEmpty(toolEffect.pendingBreakEffect))
         {
-            toolEffect.ApplyBreakEffectTo(player);
+            toolEffect.ApplyBreakEffectTo(player); // 点击目标
             return;
         }
 
         if (!string.IsNullOrEmpty(toolEffect.pendingRepairEffect))
         {
-            toolEffect.ApplyRepairEffectTo(player);
+            toolEffect.ApplyRepairEffectTo(player); // 点击目标
             return;
         }
     }
-
     public PlayerController Player => player;
 }

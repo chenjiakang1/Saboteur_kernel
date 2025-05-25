@@ -10,16 +10,17 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public string playerName;
     [SyncVar] public int gold;
     [SyncVar] public bool isMyTurn;
-    [SyncVar] public bool hasPickaxe = true;
-    [SyncVar] public bool hasMineCart = true;
-    [SyncVar] public bool hasLamp = true;
+    [SyncVar(hook = nameof(OnPickaxeChanged))] public bool hasPickaxe = true;
+    [SyncVar(hook = nameof(OnMinecartChanged))] public bool hasMineCart = true;
+    [SyncVar(hook = nameof(OnLampChanged))] public bool hasLamp = true;
 
     public readonly SyncList<CardData> hand = new SyncList<CardData>();
 
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
-        Debug.Log("[客户端] OnStartLocalPlayer");
+        Debug.Log($"[本地玩家] 我的名字是：{playerName}，netId = {netId}");
+
         CmdInit("Player" + netId);
         hand.Callback += OnHandChanged;
         GameManager.Instance.playerHandManager.ShowHand(hand);
@@ -30,6 +31,28 @@ public class PlayerController : NetworkBehaviour
         base.OnStartAuthority();
         LocalInstance = this;
         Debug.Log("[客户端] 获得 authority 权限");
+    }
+
+    public override void OnStartClient()
+    {
+        base.OnStartClient();
+        Debug.Log($"[客户端] OnStartClient 被调用，netId = {netId}");
+
+        // 所有客户端（包括 Host 和 Client）进入时尝试生成 UI
+        Invoke(nameof(GenerateUIWithDelay), 1.0f);
+    }
+
+    private void GenerateUIWithDelay()
+    {
+        if (GameManager.Instance?.playerUIManager != null)
+        {
+            Debug.Log("[客户端] 延迟调用 → 生成/刷新所有玩家 UI");
+            GameManager.Instance.playerUIManager.GenerateUI();
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ 无法访问 GameManager 或 UI 管理器，UI 未刷新");
+        }
     }
 
     private void OnHandChanged(SyncList<CardData>.Operation op, int index, CardData oldItem, CardData newItem)
@@ -74,6 +97,7 @@ public class PlayerController : NetworkBehaviour
             Debug.LogWarning("[服务端] 找不到 CellNetId: " + cellNetId);
             return;
         }
+
         var cell = identity.GetComponent<MapCell>();
         var state = cell.GetComponent<MapCellState>();
         if (state.isOccupied || state.isBlocked)
@@ -187,6 +211,7 @@ public class PlayerController : NetworkBehaviour
             img.color = new Color32(0, 0, 0, 100);
         }
     }
+
     public static void DebugClient(string msg)
     {
         if (LocalInstance != null)
@@ -194,5 +219,79 @@ public class PlayerController : NetworkBehaviour
         else
             Debug.LogWarning("❗ LocalInstance 为 null，无法发送调试信息：" + msg);
     }
-    
+
+    [Command]
+    public void CmdApplyToolEffect(uint targetNetId, string effectName)
+    {
+        if (!NetworkServer.spawned.TryGetValue(targetNetId, out var identity)) return;
+        var target = identity.GetComponent<PlayerController>();
+        if (target == null) return;
+
+        bool didApply = false;
+
+        switch (effectName)
+        {
+            case "BreakLamp":
+                if (target.hasLamp) { target.hasLamp = false; didApply = true; }
+                break;
+            case "BreakPickaxe":
+                if (target.hasPickaxe) { target.hasPickaxe = false; didApply = true; }
+                break;
+            case "BreakMinecart":
+                if (target.hasMineCart) { target.hasMineCart = false; didApply = true; }
+                break;
+            case "RepairLamp":
+                if (!target.hasLamp) { target.hasLamp = true; didApply = true; }
+                break;
+            case "RepairPickaxe":
+                if (!target.hasPickaxe) { target.hasPickaxe = true; didApply = true; }
+                break;
+            case "RepairMinecart":
+                if (!target.hasMineCart) { target.hasMineCart = true; didApply = true; }
+                break;
+            case "RepairPickaxeAndMinecart":
+                if (!target.hasPickaxe) { target.hasPickaxe = true; didApply = true; }
+                if (!target.hasMineCart) { target.hasMineCart = true; didApply = true; }
+                break;
+            case "RepairPickaxeAndLamp":
+                if (!target.hasPickaxe) { target.hasPickaxe = true; didApply = true; }
+                if (!target.hasLamp) { target.hasLamp = true; didApply = true; }
+                break;
+            case "RepairMinecartAndLamp":
+                if (!target.hasMineCart) { target.hasMineCart = true; didApply = true; }
+                if (!target.hasLamp) { target.hasLamp = true; didApply = true; }
+                break;
+        }
+
+        if (didApply)
+        {
+            GameManager.Instance.playerUIManager.UpdateAllUI(); // 本地服务端也刷新
+            RpcUpdateAllClientUI(); // 通知所有客户端刷新
+        }
+    }
+
+
+    [ClientRpc]
+    void RpcUpdateAllClientUI()
+    {
+        GameManager.Instance.playerUIManager?.UpdateAllUI();
+    }
+
+    private void OnPickaxeChanged(bool oldValue, bool newValue)
+    {
+        GameManager.Instance?.playerUIManager?.UpdateAllUI();
+    }
+
+
+    private void OnMinecartChanged(bool oldValue, bool newValue)
+    {
+        GameManager.Instance?.playerUIManager?.UpdateAllUI();
+    }
+
+
+    private void OnLampChanged(bool oldValue, bool newValue)
+    {
+        GameManager.Instance?.playerUIManager?.UpdateAllUI();
+    }
+
 }

@@ -35,20 +35,18 @@ public class ToolEffectManager : MonoBehaviour
 
     public void ApplyBreakEffectTo(PlayerController target)
     {
-        var localPlayer = NetworkClient.connection.identity.GetComponent<PlayerController>();
+        var localPlayer = PlayerController.LocalInstance;
 
         if (target == localPlayer)
         {
             Debug.Log("⚠️ 不能破坏自己的工具！");
-            if (breakSelfTipPanel != null)
-            {
-                breakSelfTipPanel.SetActive(true);
-                CancelInvoke("HideBreakSelfTip");
-                Invoke("HideBreakSelfTip", 2f);
-            }
+            breakSelfTipPanel?.SetActive(true);
+            CancelInvoke(nameof(HideBreakSelfTip));
+            Invoke(nameof(HideBreakSelfTip), 2f);
             return;
         }
 
+        // ✅ 客户端先判断目标是否已经损坏，给提示，不浪费卡
         bool alreadyBroken =
             (pendingBreakEffect == "BreakLamp" && !target.hasLamp) ||
             (pendingBreakEffect == "BreakPickaxe" && !target.hasPickaxe) ||
@@ -57,24 +55,18 @@ public class ToolEffectManager : MonoBehaviour
         if (alreadyBroken)
         {
             Debug.Log("⚠️ 工具已被破坏，无法重复破坏！");
-            if (toolRepeatTipPanel != null)
-            {
-                toolRepeatTipPanel.SetActive(true);
-                if (textToolAlreadyBroken != null) textToolAlreadyBroken.SetActive(true);
-                if (textToolAlreadyRepaired != null) textToolAlreadyRepaired.SetActive(false);
-                CancelInvoke("HideToolRepeatTip");
-                Invoke("HideToolRepeatTip", 2f);
-            }
+            toolRepeatTipPanel?.SetActive(true);
+            textToolAlreadyBroken?.SetActive(true);
+            textToolAlreadyRepaired?.SetActive(false);
+            CancelInvoke(nameof(HideToolRepeatTip));
+            Invoke(nameof(HideToolRepeatTip), 2f);
             return;
         }
 
-        switch (pendingBreakEffect)
-        {
-            case "BreakLamp": target.hasLamp = false; break;
-            case "BreakPickaxe": target.hasPickaxe = false; break;
-            case "BreakMinecart": target.hasMineCart = false; break;
-        }
+        // ✅ 发给服务端执行效果
+        localPlayer.CmdApplyToolEffect(target.netId, pendingBreakEffect);
 
+        // ✅ 消耗卡牌
         if (pendingBreakCardIndex >= 0)
         {
             var card = localPlayer.hand[pendingBreakCardIndex];
@@ -85,57 +77,41 @@ public class ToolEffectManager : MonoBehaviour
         }
 
         ClearPendingBreak();
-        playerUIManager.UpdateAllUI();
         TurnManager.Instance.NextTurn();
     }
 
     public void ApplyRepairEffectTo(PlayerController target)
     {
-        var localPlayer = NetworkClient.connection.identity.GetComponent<PlayerController>();
-        bool didRepair = false;
+        var localPlayer = PlayerController.LocalInstance;
 
-        if (pendingRepairEffect == "RepairLamp" && !target.hasLamp)
+        // ✅ 客户端先判断目标是否已修复
+        bool alreadyRepaired = false;
+
+        switch (pendingRepairEffect)
         {
-            target.hasLamp = true; didRepair = true;
-        }
-        else if (pendingRepairEffect == "RepairPickaxe" && !target.hasPickaxe)
-        {
-            target.hasPickaxe = true; didRepair = true;
-        }
-        else if (pendingRepairEffect == "RepairMinecart" && !target.hasMineCart)
-        {
-            target.hasMineCart = true; didRepair = true;
-        }
-        else if (pendingRepairEffect == "RepairPickaxeAndMinecart")
-        {
-            if (!target.hasPickaxe) { target.hasPickaxe = true; didRepair = true; }
-            if (!target.hasMineCart) { target.hasMineCart = true; didRepair = true; }
-        }
-        else if (pendingRepairEffect == "RepairPickaxeAndLamp")
-        {
-            if (!target.hasPickaxe) { target.hasPickaxe = true; didRepair = true; }
-            if (!target.hasLamp) { target.hasLamp = true; didRepair = true; }
-        }
-        else if (pendingRepairEffect == "RepairMinecartAndLamp")
-        {
-            if (!target.hasMineCart) { target.hasMineCart = true; didRepair = true; }
-            if (!target.hasLamp) { target.hasLamp = true; didRepair = true; }
+            case "RepairLamp": alreadyRepaired = target.hasLamp; break;
+            case "RepairPickaxe": alreadyRepaired = target.hasPickaxe; break;
+            case "RepairMinecart": alreadyRepaired = target.hasMineCart; break;
+            case "RepairPickaxeAndMinecart": alreadyRepaired = target.hasPickaxe && target.hasMineCart; break;
+            case "RepairPickaxeAndLamp": alreadyRepaired = target.hasPickaxe && target.hasLamp; break;
+            case "RepairMinecartAndLamp": alreadyRepaired = target.hasMineCart && target.hasLamp; break;
         }
 
-        if (!didRepair)
+        if (alreadyRepaired)
         {
-            Debug.Log("⚠️ 所有目标工具都已完好，无法修复！");
-            if (toolRepeatTipPanel != null)
-            {
-                toolRepeatTipPanel.SetActive(true);
-                if (textToolAlreadyBroken != null) textToolAlreadyBroken.SetActive(false);
-                if (textToolAlreadyRepaired != null) textToolAlreadyRepaired.SetActive(true);
-                CancelInvoke("HideToolRepeatTip");
-                Invoke("HideToolRepeatTip", 2f);
-            }
+            Debug.Log("⚠️ 工具已完好，无法修复！");
+            toolRepeatTipPanel?.SetActive(true);
+            textToolAlreadyBroken?.SetActive(false);
+            textToolAlreadyRepaired?.SetActive(true);
+            CancelInvoke(nameof(HideToolRepeatTip));
+            Invoke(nameof(HideToolRepeatTip), 2f);
             return;
         }
 
+        // ✅ 发给服务端执行效果
+        localPlayer.CmdApplyToolEffect(target.netId, pendingRepairEffect);
+
+        // ✅ 消耗卡牌
         if (pendingRepairCardIndex >= 0)
         {
             var card = localPlayer.hand[pendingRepairCardIndex];
@@ -146,8 +122,23 @@ public class ToolEffectManager : MonoBehaviour
         }
 
         ClearPendingRepair();
-        playerUIManager.UpdateAllUI();
         TurnManager.Instance.NextTurn();
+    }
+
+    private void EnsureUIInitialized()
+    {
+        var uiManager = GameManager.Instance.playerUIManager;
+        if (uiManager == null) return;
+
+        if (uiManager.playerUIPanelParent.childCount == 0)
+        {
+            Debug.Log("🧩 未检测到玩家 UI，重新生成！");
+            uiManager.GenerateUI();
+        }
+        else
+        {
+            uiManager.UpdateAllUI();
+        }
     }
 
     public void ClearPendingBreak()
@@ -164,14 +155,13 @@ public class ToolEffectManager : MonoBehaviour
 
     public void HideBreakSelfTip()
     {
-        if (breakSelfTipPanel != null)
-            breakSelfTipPanel.SetActive(false);
+        breakSelfTipPanel?.SetActive(false);
     }
 
     public void HideToolRepeatTip()
     {
-        if (toolRepeatTipPanel != null) toolRepeatTipPanel.SetActive(false);
-        if (textToolAlreadyBroken != null) textToolAlreadyBroken.SetActive(false);
-        if (textToolAlreadyRepaired != null) textToolAlreadyRepaired.SetActive(false);
+        toolRepeatTipPanel?.SetActive(false);
+        textToolAlreadyBroken?.SetActive(false);
+        textToolAlreadyRepaired?.SetActive(false);
     }
 }

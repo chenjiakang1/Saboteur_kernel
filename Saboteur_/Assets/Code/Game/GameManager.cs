@@ -70,8 +70,22 @@ public class GameManager : NetworkBehaviour
             }
         }
 
-        // ✅ 调试输出
+        // ✅ 延迟通知客户端生成玩家 UI 面板
+        Invoke(nameof(CallClientGenerateUI), 1.0f);
+
         Debug.Log($"🃏 剩余抽牌堆数量：{cardDeckManager.remainingCards}");
+    }
+
+    private void CallClientGenerateUI()
+    {
+        RpcGenerateAllPlayerUI();
+    }
+
+    [ClientRpc]
+    public void RpcGenerateAllPlayerUI()
+    {
+        Debug.Log("🎮 客户端收到 RpcGenerateAllPlayerUI，开始生成玩家 UI");
+        playerUIManager?.GenerateUI();
     }
 
     public void SetPendingCard(CardData card, Sprite sprite, int index)
