@@ -120,8 +120,8 @@ public class MapCellClickHandler : MonoBehaviour
 
         GameManager.Instance.ClearPendingCard();
 
-        var checker = Object.FindFirstObjectByType<PathChecker>();
-        checker?.CheckWinCondition();
+        //var checker = Object.FindFirstObjectByType<PathChecker>();
+        //checker?.CheckWinCondition();
 
         TurnManager.Instance.NextTurn();
     }

@@ -57,10 +57,13 @@ public class PlayerController : NetworkBehaviour
 
     private void OnHandChanged(SyncList<CardData>.Operation op, int index, CardData oldItem, CardData newItem)
     {
-        if (!isLocalPlayer) return;
+        if (this != PlayerController.LocalInstance) return;
+
         Debug.Log($"[客户端] 手牌列表变更({op}) → 刷新 UI");
         GameManager.Instance.playerHandManager.ShowHand(hand);
     }
+
+
 
     [Command]
     public void CmdInit(string name)
@@ -84,38 +87,42 @@ public class PlayerController : NetworkBehaviour
 
     [Command]
     public void CmdRequestPlaceCard(uint cellNetId,
-        string cardName, string spriteName, string toolEffect,
-        Card.CardType cardType,
-        bool up, bool down, bool left, bool right,
-        bool blockedCenter,
-        bool isPathPassable,
-        int handIndex)
+    string cardName, string spriteName, string toolEffect,
+    Card.CardType cardType,
+    bool up, bool down, bool left, bool right,
+    bool blockedCenter,
+    bool isPathPassable,
+    int handIndex)
     {
         Debug.Log("[服务端] 收到 CmdRequestPlaceCard");
-        if (!NetworkServer.spawned.TryGetValue(cellNetId, out NetworkIdentity identity))
+
+        if (cellNetId != 0)
         {
-            Debug.LogWarning("[服务端] 找不到 CellNetId: " + cellNetId);
-            return;
+            if (!NetworkServer.spawned.TryGetValue(cellNetId, out NetworkIdentity identity))
+            {
+                Debug.LogWarning("[服务端] 找不到 CellNetId: " + cellNetId);
+                return;
+            }
+
+            var cell = identity.GetComponent<MapCell>();
+            var state = cell.GetComponent<MapCellState>();
+            if (state.isOccupied || state.isBlocked)
+            {
+                Debug.LogWarning("[服务端] Cell 不可用或已占用");
+                return;
+            }
+
+            RpcBroadcastPlaceCard(cellNetId, cardName, spriteName, toolEffect,
+                                  cardType, up, down, left, right, blockedCenter, isPathPassable);
+
+            cell.PlaceCardServer(cardName, spriteName, toolEffect, cardType,
+                                 up, down, left, right, blockedCenter, isPathPassable);
         }
 
-        var cell = identity.GetComponent<MapCell>();
-        var state = cell.GetComponent<MapCellState>();
-        if (state.isOccupied || state.isBlocked)
-        {
-            Debug.LogWarning("[服务端] Cell 不可用或已占用");
-            return;
-        }
-
-        RpcBroadcastPlaceCard(cellNetId, cardName, spriteName, toolEffect,
-                              cardType, up, down, left, right, blockedCenter, isPathPassable);
-
-        cell.PlaceCardServer(cardName, spriteName, toolEffect, cardType,
-                             up, down, left, right, blockedCenter, isPathPassable);
-
-        Object.FindFirstObjectByType<PathChecker>()?.CheckWinCondition();
-
+        // ✅ 不论是否是地图卡，只要用了就移除手牌
         if (handIndex >= 0 && handIndex < hand.Count)
         {
+            Debug.Log($"✅ 从手牌中移除卡片 index={handIndex} → {cardName}");
             hand.RemoveAt(handIndex);
             var newCard = GameManager.Instance.cardDeckManager.DrawCard();
             if (newCard != null)
@@ -123,9 +130,11 @@ public class PlayerController : NetworkBehaviour
         }
         else
         {
-            Debug.LogWarning("[服务端] handIndex 超出范围: " + handIndex);
+            Debug.LogWarning($"❌ handIndex 越界或无效: {handIndex}");
         }
+        Object.FindFirstObjectByType<PathChecker>()?.CheckWinCondition();
     }
+
 
     [ClientRpc]
     public void RpcBroadcastPlaceCard(uint cellNetId,
