@@ -1,19 +1,22 @@
 // MapCellState.cs
 using UnityEngine;
+using Mirror;
 
 /// <summary>
 /// 负责管理地图格子的基础状态：位置、是否被占用、是否被阻断、所持有的卡牌
 /// </summary>
-public class MapCellState : MonoBehaviour
+public class MapCellState : NetworkBehaviour
 {
     /// <summary>
     /// 格子是否已被卡牌占用
     /// </summary>
+    [SyncVar]
     public bool isOccupied = false;
 
     /// <summary>
-    /// 格子是否为阻断状态（如塌方）
+    /// 格子是否为阻断状态（如塌方或终点）
     /// </summary>
+    [SyncVar]
     public bool isBlocked = false;
 
     /// <summary>

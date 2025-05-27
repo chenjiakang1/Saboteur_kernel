@@ -211,5 +211,12 @@ public class MapGenerator : NetworkBehaviour
         }
     }
 
+    /// <summary>
+    /// 服务端判断某个终点格是否是金矿（供探查卡使用）
+    /// </summary>
+    public bool IsGoldAt(Vector2Int pos)
+    {
+        return isGoldMap.ContainsKey(pos) && isGoldMap[pos];
+    }
 
 }

@@ -19,24 +19,74 @@ public class MapCellClickHandler : MonoBehaviour
 
     public void OnClick()
     {
-        Debug.Log("🖱️ [MapCellClickHandler] 格子被点击");
+        Debug.Log("🔱 [MapCellClickHandler] 格子被点击");
 
         var currentPlayer = PlayerController.LocalInstance;
-        if (!currentPlayer.isMyTurn)
+        if (currentPlayer == null)
         {
-            Debug.Log("⛔ 不是你的回合，不能放置卡牌！");
+            Debug.LogError("❌ currentPlayer 为 null，LocalInstance 未正确设置！");
             return;
         }
 
-        PlayerController.DebugClient($"🟪 点击地图格子 ({state.row},{state.col}) → isBlocked: {state.isBlocked}, isOccupied: {state.isOccupied}");
+        if (!currentPlayer.isMyTurn)
+        {
+            Debug.Log("⛔ 不是你的回合，不能放置卡片！");
+            return;
+        }
+
+        PlayerController.DebugClient($"🔪 点击地图格子 ({state.row},{state.col}) → isBlocked: {state.isBlocked}, isOccupied: {state.isOccupied}");
 
         var pending = GameManager.Instance.pendingCard;
 
+        // ✅ 探查卡逻辑
+        if (pending.HasValue && pending.Value.toolEffect == "Scout")
+        {
+            Debug.Log("🧚 [探查逻辑] 判断到探查卡");
+
+            if (!state.isBlocked)
+            {
+                Debug.Log("❌ 探查卡只能用于终点格");
+                return;
+            }
+            //Debug.Log("🧚 [探查逻辑] 判断到探查卡");
+
+            Debug.Log($"🔍 使用探查卡查看终点格：({state.row}, {state.col})");
+
+            int cardIndex = GameManager.Instance.pendingCardIndex;
+
+            var localPlayer = PlayerController.LocalInstance;
+
+            Debug.Log($"🌟 [Network 验证] NetworkClient.active = {NetworkClient.active}");
+            Debug.Log($"🌟 NetworkClient.localPlayer = {NetworkClient.localPlayer}");
+            Debug.Log($"🌟 LocalInstance = {localPlayer}, isLocalPlayer = {(localPlayer != null && localPlayer.isLocalPlayer)}");
+
+            if (localPlayer == null)
+            {
+                Debug.LogError("❌ PlayerController.LocalInstance is null，Cmd 无法发起！");
+                return;
+            }
+
+            Debug.Log("📤 调用 CmdUseAndDrawCard()");
+            localPlayer.CmdUseAndDrawCard(cardIndex);
+
+            uint cellNetId = GetComponent<NetworkIdentity>().netId;
+            uint playerNetId = localPlayer.netId;
+            Debug.Log($"📤 调用 CmdRequestRevealTerminal(cellNetId={cellNetId}, playerNetId={playerNetId})");
+            localPlayer.CmdRequestRevealTerminal(cellNetId, playerNetId);
+
+            GameManager.Instance.ClearPendingCard();
+
+            Debug.Log("📤 调用 CmdEndTurn()");
+            localPlayer.CmdEndTurn();
+            return;
+        }
+
+        // ❄️ 塑断卡
         if (pending.HasValue &&
             pending.Value.cardType == Card.CardType.Action &&
             pending.Value.toolEffect == "Collapse")
         {
-            PlayerController.DebugClient($"💥 尝试使用塌方卡在 ({state.row},{state.col})");
+            PlayerController.DebugClient($"🔥 尝试使用塑断卡在 ({state.row},{state.col})");
             GameManager.Instance.collapseManager.ApplyCollapseTo(GetComponent<MapCell>());
             return;
         }
@@ -65,7 +115,7 @@ public class MapCellClickHandler : MonoBehaviour
             return;
         }
 
-        // 工具卡限制：必须修复后才能出路径卡
+        // 工具卡限制
         if (pending.Value.cardType == Card.CardType.Path &&
             (!currentPlayer.hasLamp || !currentPlayer.hasPickaxe || !currentPlayer.hasMineCart))
         {
@@ -79,7 +129,7 @@ public class MapCellClickHandler : MonoBehaviour
             return;
         }
 
-        // 邻居检查：是否能连接到已有路径
+        // 邻居路径连接检查
         bool canConnect = false;
         var map = GameManager.Instance.mapGenerator.mapCells;
 
@@ -110,11 +160,11 @@ public class MapCellClickHandler : MonoBehaviour
             return;
         }
 
-        // ✅ 出牌请求
+        // ✅ 出路径卡请求
         int replacedIndex = GameManager.Instance.pendingCardIndex;
 
         currentPlayer.CmdRequestPlaceCard(
-            net.netId,
+            GetComponent<NetworkIdentity>().netId,
             pending.Value.cardName,
             pending.Value.spriteName,
             pending.Value.toolEffect,
@@ -125,8 +175,6 @@ public class MapCellClickHandler : MonoBehaviour
             replacedIndex);
 
         GameManager.Instance.ClearPendingCard();
-
-        // ✅ 由客户端指令服务端执行轮换
         currentPlayer.CmdEndTurn();
     }
 }

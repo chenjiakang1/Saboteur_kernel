@@ -10,7 +10,7 @@ public class Card
     public bool blockedCenter;
     public bool isPathPassable;
 
-    public enum CardType { None, Path, Tool, Action }
+    public enum CardType { None, Path, Tool, Action, ScoutTool}
     public CardType cardType = CardType.None;
 
     public string toolEffect = "";

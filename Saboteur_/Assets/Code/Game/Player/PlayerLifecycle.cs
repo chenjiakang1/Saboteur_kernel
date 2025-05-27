@@ -6,18 +6,26 @@ public partial class PlayerController
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
-        Debug.Log($"[本地玩家] 我的名字是：{playerName}，netId = {netId}");
 
+        // ✅ 设置 LocalInstance，确保客户端能访问本地玩家控制器
+        LocalInstance = this;
+
+        Debug.Log($"🟢 [本地玩家] OnStartLocalPlayer 被调用 → 设置 LocalInstance，netId = {netId}");
+
+        // 初始化玩家信息并同步
         CmdInit("Player" + netId);
+
+        // 绑定手牌列表变化事件，刷新手牌 UI
         hand.Callback += OnHandChanged;
+
+        // 显示初始手牌 UI
         GameManager.Instance.playerHandManager.ShowHand(hand);
     }
 
     public override void OnStartAuthority()
     {
         base.OnStartAuthority();
-        LocalInstance = this;
-        Debug.Log("[客户端] 获得 authority 权限");
+        Debug.Log("[客户端] OnStartAuthority 被调用，获得 authority 权限");
     }
 
     public override void OnStartClient()
@@ -25,10 +33,11 @@ public partial class PlayerController
         base.OnStartClient();
         Debug.Log($"[客户端] OnStartClient 被调用，netId = {netId}");
         Debug.Log($"📡 [客户端] Player turnIndex={turnIndex}, isMyTurn={isMyTurn}");
+
+        // 延迟生成全体 UI，避免未初始化
         Invoke(nameof(GenerateUIWithDelay), 1.0f);
     }
 
-    // ✅ 新增：服务端执行时注册玩家
     public override void OnStartServer()
     {
         base.OnStartServer();
@@ -52,14 +61,15 @@ public partial class PlayerController
     private void OnHandChanged(SyncList<CardData>.Operation op, int index, CardData oldItem, CardData newItem)
     {
         if (this != LocalInstance) return;
-        Debug.Log($"[客户端] 手牌列表变更({op}) → 刷新 UI");
+
+        Debug.Log($"🃏 [客户端] 手牌列表变更({op}) → 刷新 UI");
         GameManager.Instance.playerHandManager.ShowHand(hand);
     }
 
     [Command]
     public void CmdInit(string name)
     {
-        Debug.Log("[服务端] 执行 CmdInit: " + name);
+        Debug.Log($"🛠️ [服务端] 执行 CmdInit 初始化玩家: {name}");
         playerName = name;
         gold = 0;
         isMyTurn = false;

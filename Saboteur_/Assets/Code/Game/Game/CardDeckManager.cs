@@ -49,6 +49,10 @@ public class CardDeckManager : MonoBehaviour
     public List<Card> cardDeck = new List<Card>();
     public int remainingCards = 0;
 
+    [Header("探查卡图像")]
+    public Sprite scoutToolSprite;
+
+
     private Dictionary<string, List<Sprite>> spriteGroups = new();
 
     private void Awake()
@@ -124,9 +128,16 @@ public class CardDeckManager : MonoBehaviour
             cardDeck.Add(CreateToolCard("Collapse", Card.CardType.Action, collapseCardSprite));
         }
 
+        // ✅ 探查卡 ×6
+        for (int i = 0; i < 6; i++)
+        {
+            cardDeck.Add(CreateToolCard("Scout", Card.CardType.Tool, scoutToolSprite));
+        }
+
         ShuffleDeck();
         remainingCards = cardDeck.Count;
     }
+
 
     private void AddPathCards(string key, int count, Card template)
     {
@@ -218,7 +229,8 @@ public class CardDeckManager : MonoBehaviour
             breakLampSprite, breakPickaxeSprite, breakMinecartSprite,
             repairLampSprite, repairPickaxeSprite, repairMinecartSprite,
             repairPickaxeAndMinecartSprite, repairPickaxeAndLampSprite, repairMinecartAndLampSprite,
-            collapseCardSprite
+            collapseCardSprite,
+            scoutToolSprite
         };
 
         foreach (var s in extraSprites)

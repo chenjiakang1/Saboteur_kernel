@@ -2151,6 +2151,7 @@ MonoBehaviour:
   collapseCardSprite: {fileID: 2962130257639743992, guid: e3f21beb36e7c4ecea44b55009ee1eac, type: 3}
   cardDeck: []
   remainingCards: 0
+  scoutToolSprite: {fileID: 9147850267128516949, guid: 9269e21ede3f045b7a38778a52d61202, type: 3}
 --- !u!224 &1174635632
 RectTransform:
   m_ObjectHideFlags: 0

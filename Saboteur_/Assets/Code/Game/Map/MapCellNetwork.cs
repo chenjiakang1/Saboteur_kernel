@@ -103,9 +103,11 @@ public class MapCellNetwork : NetworkBehaviour
     {
         state = GetComponent<MapCellState>();
         spriteName = name;
+
+        // ✅ 设置同步变量（将由 SyncVar 自动同步）
         state.isBlocked = true;
 
-        Debug.Log($"[服务端] SetBlockedByName → spriteName={spriteName}, row={row}, col={col}, isBlocked={state.isBlocked}");
+        Debug.Log($"✅ [服务端] SetBlockedByName → spriteName={spriteName}, row={row}, col={col}, isBlocked={state.isBlocked}");
     }
 
     [ClientRpc]
@@ -120,5 +122,4 @@ public class MapCellNetwork : NetworkBehaviour
 
         GetComponent<MapCell>()?.RevealTerminal(sprite);
     }
-
 }

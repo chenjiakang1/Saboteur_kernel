@@ -48,11 +48,24 @@ public class CardDisplay : MonoBehaviour
             return;
         }
 
-        // 地图中的卡牌不可点击（支持塌方卡特殊操作）
+        // 地图中的卡牌不可直接点击（除非使用探查卡）
         if (transform.parent != GameManager.Instance.cardParent)
         {
             var pending = GameManager.Instance.pendingCard;
 
+            // ✅ 探查卡允许转发点击到 MapCell
+            if (pending.HasValue && pending.Value.toolEffect == "Scout")
+            {
+                var cell = GetComponentInParent<MapCell>();
+                if (cell != null)
+                {
+                    Debug.Log("🔁 探查卡点击地图卡牌，转发给格子处理");
+                    cell.OnClick(); // ⬅️ 手动转发给 MapCellClickHandler
+                }
+                return;
+            }
+
+            // ✅ 塌方卡逻辑保留
             if (pending.HasValue &&
                 pending.Value.cardType == Card.CardType.Action &&
                 pending.Value.toolEffect == "Collapse")
@@ -68,6 +81,7 @@ public class CardDisplay : MonoBehaviour
             Debug.Log("⛔ 地图卡牌不可点击操作（仅支持塌方）！");
             return;
         }
+
 
         if (GameManager.Instance.gameStateManager.hasGameEnded)
         {
@@ -111,9 +125,15 @@ public class CardDisplay : MonoBehaviour
                 GameManager.Instance.toolEffectManager.ShowRepairToolPanel(cardData.toolEffect, cardIndex);
                 return;
             }
+
+            if (cardData.toolEffect == "Scout")
+            {
+                Debug.Log("🔍 使用探查卡，请点击终点格子查看其底下是金矿还是石头");
+                // 不做其他操作，等点击终点格触发 Reveal
+                return;
+            }
         }
 
-        // ✅ 取消：此处不应替换卡牌！
-        // ✅ 替换应由 MapCell.cs 控制：放置卡片成功后，再真正替换手牌
+        // ✅ 注意：不在这里处理卡牌消耗，由 MapCell 或工具逻辑处理
     }
 }

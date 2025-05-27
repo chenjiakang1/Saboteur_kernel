@@ -37,6 +37,12 @@ public class MapCellUI : MonoBehaviour
         rt.offsetMax = Vector2.zero;
 
         cardDisplay = display;
+
+        // ✅ 确保地图上的卡牌不会阻挡点击（探查卡可点击穿透）
+        CanvasGroup cg = cardGO.GetComponent<CanvasGroup>();
+        if (cg == null)
+            cg = cardGO.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = false;
     }
 
     /// <summary>
@@ -91,7 +97,15 @@ public class MapCellUI : MonoBehaviour
     public void RevealTerminal(Sprite faceSprite)
     {
         if (cardDisplay == null) return;
+
         cardDisplay.Init("Terminal", faceSprite);
+
+        // ✅ 确保终点卡图像不阻挡点击
+        CanvasGroup cg = cardDisplay.GetComponent<CanvasGroup>();
+        if (cg == null)
+            cg = cardDisplay.gameObject.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = false;
+
         PlayerController.DebugClient($"🪙 RevealTerminal → 显示终点 sprite: {faceSprite.name}");
     }
 }
