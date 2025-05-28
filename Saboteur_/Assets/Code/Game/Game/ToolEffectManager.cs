@@ -79,7 +79,7 @@ public class ToolEffectManager : MonoBehaviour
         }
 
         ClearPendingBreak();
-        TurnManager.Instance.NextTurn();
+        localPlayer.CmdEndTurn();
     }
 
     public void ApplyRepairEffectTo(PlayerController target)
@@ -126,7 +126,7 @@ public class ToolEffectManager : MonoBehaviour
         }
 
         ClearPendingRepair();
-        TurnManager.Instance.NextTurn();
+        localPlayer.CmdEndTurn();
     }
 
     public void ClearPendingBreak()

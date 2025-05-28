@@ -88,6 +88,8 @@ public class MapCellClickHandler : MonoBehaviour
         {
             PlayerController.DebugClient($"🔥 尝试使用塑断卡在 ({state.row},{state.col})");
             GameManager.Instance.collapseManager.ApplyCollapseTo(GetComponent<MapCell>());
+            var localPlayer = PlayerController.LocalInstance;
+            localPlayer.CmdEndTurn();
             return;
         }
 

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
 
-public class CardDeckManager : MonoBehaviour
+public class CardDeckManager : NetworkBehaviour
 {
     public GameManager gameManager;
 
@@ -51,6 +51,8 @@ public class CardDeckManager : MonoBehaviour
 
     [Header("探查卡图像")]
     public Sprite scoutToolSprite;
+
+    public CardDeckDisplay deckDisplay; // 拖入 UI 脚本
 
 
     private Dictionary<string, List<Sprite>> spriteGroups = new();
@@ -197,6 +199,8 @@ public class CardDeckManager : MonoBehaviour
         cardDeck.RemoveAt(0);
         remainingCards--;
 
+        RpcUpdateRemainingCards(remainingCards); // ✅ 通知所有客户端更新 UI
+
         if (remainingCards <= 0 && !gameManager.gameStateManager.hasGameEnded)
         {
             gameManager.gameStateManager.RpcGameOver(false);
@@ -204,6 +208,16 @@ public class CardDeckManager : MonoBehaviour
 
         return card;
     }
+    [ClientRpc]
+    void RpcUpdateRemainingCards(int count)
+    {
+        if (deckDisplay != null)
+        {
+            deckDisplay.UpdateText(count);
+        }
+    }
+
+
 
     public Sprite FindSpriteByName(string spriteName)
     {

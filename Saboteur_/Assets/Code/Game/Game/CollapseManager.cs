@@ -36,7 +36,6 @@ public class CollapseManager : MonoBehaviour
         }
 
         GameManager.Instance.ClearPendingCard();
-        TurnManager.Instance.NextTurn();
 
         Debug.Log($"✅ 清除完成，格子({state.row},{state.col}) 现在可以重新放牌");
     }
