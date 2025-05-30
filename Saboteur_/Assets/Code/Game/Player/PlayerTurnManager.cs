@@ -6,13 +6,14 @@ using UnityEngine;
 /// </summary>
 public partial class PlayerController
 {
-
     /// <summary>
     /// 由服务端调用，明确告诉该客户端是否轮到其出牌
     /// </summary>
     [TargetRpc]
     public void TargetSetTurn(NetworkConnection target, bool isTurn)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         isMyTurn = isTurn;
         Debug.Log($"🎯 [TargetSetTurn] netId={netId}, isMyTurn={isTurn}");
 
@@ -30,6 +31,8 @@ public partial class PlayerController
     [Command]
     public void CmdEndTurn()
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         Debug.Log("🌀 [服务端] CmdEndTurn 被调用 → 执行 TurnManager.NextTurn()");
         TurnManager.Instance.NextTurn();
     }

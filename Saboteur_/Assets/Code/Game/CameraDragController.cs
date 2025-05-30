@@ -9,6 +9,8 @@ public partial class PlayerController
         Card.CardType cardType, bool up, bool down, bool left, bool right, bool blockedCenter,
         bool isPathPassable, int handIndex)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         Debug.Log("📦 [服务端] CmdRequestPlaceCard 被调用");
 
         if (cellNetId != 0 && NetworkServer.spawned.TryGetValue(cellNetId, out var identity))
@@ -40,6 +42,8 @@ public partial class PlayerController
         Card.CardType cardType, bool up, bool down, bool left, bool right,
         bool blockedCenter, bool isPassable)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         if (NetworkClient.spawned.TryGetValue(cellNetId, out var identity))
         {
             var cell = identity.GetComponent<MapCell>();
@@ -51,6 +55,7 @@ public partial class PlayerController
     [Command]
     public void CmdUseCollapseCardOnly(int handIndex)
     {
+        if (!PlayerController.isGameplayEnabled) return;
         if (handIndex < 0 || handIndex >= hand.Count) return;
 
         hand.RemoveAt(handIndex);
@@ -63,6 +68,8 @@ public partial class PlayerController
     [Command]
     public void CmdCollapseMapCell(uint cellNetId)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         if (!NetworkServer.spawned.TryGetValue(cellNetId, out var identity)) return;
         var cell = identity.GetComponent<MapCell>();
         var state = cell.GetComponent<MapCellState>();
@@ -76,6 +83,8 @@ public partial class PlayerController
     [ClientRpc]
     void RpcCollapseMapCell(uint cellNetId)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         if (!NetworkClient.spawned.TryGetValue(cellNetId, out var identity)) return;
         var cell = identity.GetComponent<MapCell>();
         var ui = cell.GetComponent<MapCellUI>();
@@ -94,6 +103,8 @@ public partial class PlayerController
     [Command]
     public void CmdApplyToolEffect(uint targetNetId, string effectName)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         if (!NetworkServer.spawned.TryGetValue(targetNetId, out var identity)) return;
         var target = identity.GetComponent<PlayerController>();
         if (target == null) return;
@@ -123,6 +134,8 @@ public partial class PlayerController
     [ClientRpc]
     void RpcUpdateAllClientUI()
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         GameManager.Instance.playerUIManager?.UpdateAllUI();
     }
 

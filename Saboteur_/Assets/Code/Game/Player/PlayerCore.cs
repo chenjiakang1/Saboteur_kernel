@@ -20,16 +20,22 @@ public partial class PlayerController : NetworkBehaviour
 
     private void OnPickaxeChanged(bool oldValue, bool newValue)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         GameManager.Instance?.playerUIManager?.UpdateAllUI();
     }
 
     private void OnMinecartChanged(bool oldValue, bool newValue)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         GameManager.Instance?.playerUIManager?.UpdateAllUI();
     }
 
     private void OnLampChanged(bool oldValue, bool newValue)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         GameManager.Instance?.playerUIManager?.UpdateAllUI();
     }
 

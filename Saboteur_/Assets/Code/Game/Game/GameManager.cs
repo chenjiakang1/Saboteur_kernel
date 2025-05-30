@@ -28,6 +28,8 @@ public class GameManager : NetworkBehaviour
     [HideInInspector] public int pendingCardIndex = -1;
     [HideInInspector] public Sprite pendingSprite = null;
 
+    private bool hasDealtCards = false;
+
     private void Awake()
     {
         if (Instance == null)
@@ -45,37 +47,30 @@ public class GameManager : NetworkBehaviour
     public override void OnStartServer()
     {
         base.OnStartServer();
+        Debug.Log("🟢 [服务端] GameManager.OnStartServer() 被调用");
         cardDeckManager?.InitCardDeck();
-
-        // 延迟初始化，以确保玩家已 Spawn 完成
-        Invoke(nameof(InitPlayersAfterDelay), 0.5f);
+        Invoke(nameof(InitPlayersAfterDelay), 1.0f);
     }
 
     private void InitPlayersAfterDelay()
     {
+        if (hasDealtCards)
+        {
+            Debug.Log("⛔ 已发过手牌，跳过 InitPlayersAfterDelay()");
+            return;
+        }
+        hasDealtCards = true;
+
         var sortedPlayers = Object.FindObjectsByType<PlayerController>(FindObjectsSortMode.None)
             .OrderBy(p => p.netId)
             .ToList();
 
         Debug.Log($"🧪 InitPlayersAfterDelay：共找到 {sortedPlayers.Count} 名玩家");
 
-        foreach (var p in sortedPlayers)
-        {
-            Debug.Log($"👤 Player found: netId={p.netId}, isLocalPlayer={p.isLocalPlayer}, isServer={p.isServer}");
-        }
-
-        // 不再调用 TurnManager.InitTurnOrder → 注册逻辑已交由 PlayerController.OnStartServer 执行
-
-        foreach (var player in sortedPlayers)
-        {
-            player.hand.Clear();
-            for (int i = 0; i < 5; i++)
-            {
-                var card = cardDeckManager.DrawCard();
-                if (card != null)
-                    player.hand.Add(new CardData(card));
-            }
-        }
+        //foreach (var player in sortedPlayers)
+        //{
+            //player.CmdInit(player.playerName);
+        //}
 
         Invoke(nameof(CallClientGenerateUI), 1.0f);
     }

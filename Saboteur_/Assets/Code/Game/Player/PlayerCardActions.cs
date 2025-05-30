@@ -10,6 +10,8 @@ public partial class PlayerController : NetworkBehaviour
     [Command(requiresAuthority = false)]
     public void CmdRequestRevealTerminal(uint targetCellNetId, uint callerPlayerNetId)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         Debug.Log($"📩 [CmdRequestRevealTerminal] 被调用，目标格子 netId = {targetCellNetId}, 调用者玩家 netId = {callerPlayerNetId}");
 
         if (!NetworkServer.spawned.TryGetValue(targetCellNetId, out var cellObj))
@@ -55,7 +57,6 @@ public partial class PlayerController : NetworkBehaviour
         TargetRevealTerminalSprite(callerConn, targetCellNetId, spriteName);
     }
 
-
     /// <summary>
     /// 客户端本地揭示终点内容，仅发给使用探查卡的客户端
     /// </summary>
@@ -91,6 +92,8 @@ public partial class PlayerController : NetworkBehaviour
     [Command]
     public void CmdUseAndDrawCard(int index)
     {
+        if (!PlayerController.isGameplayEnabled) return;
+
         Debug.Log($"🛠️ [CmdUseAndDrawCard] index={index}, hand.Count={hand.Count}");
 
         if (index >= 0 && index < hand.Count)
