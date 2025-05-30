@@ -76,20 +76,22 @@ public class CustomNetworkManager : NetworkManager
     /// </summary>
     private void InitAllPlayersForGame()
     {
-        Debug.Log("🎴 正在初始化所有玩家数据并发牌...");
+        Debug.Log("🎴 正在初始化所有玩家数据并分配身份...");
 
         PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+
+        // ✅ 新增：统一分配身份
+       RoleAssigner.AssignRolesToPlayers(players);
+
         foreach (var player in players)
         {
-            // ✅ 为每个玩家发手牌（服务端调用 Command）
-            //player.CmdInit(player.playerName);
-
             // ✅ 注册进回合系统
             TurnManager.Instance?.RegisterPlayer(player);
 
-            Debug.Log($"✅ 初始化完成：{player.playerName} (netId={player.netId})");
+            Debug.Log($"✅ 初始化完成：{player.playerName} (netId={player.netId})，角色：{player.assignedRole}");
         }
 
         Debug.Log($"🌀 当前已初始化并注册的玩家总数 = {players.Length}");
     }
+
 }
