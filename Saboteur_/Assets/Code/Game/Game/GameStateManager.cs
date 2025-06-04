@@ -1,5 +1,6 @@
 using UnityEngine;
 using Mirror;
+using System.Collections;
 
 public class GameStateManager : NetworkBehaviour
 {
@@ -8,9 +9,21 @@ public class GameStateManager : NetworkBehaviour
     public GameObject gameOverVictory;
     public GameObject gameOverLose;
 
+    [Header("胜利后展示的积分面板")]
+    public GameObject scorePanel; // ✅ 拖入积分面板 UI
+
+    [Header("积分卡生成控制器")]
+    public ScoreCardDrawFlow scoreDrawFlow; // ✅ 拖入 ScoreCardDrawFlow 脚本对象
+
     [HideInInspector] public bool hasGameEnded = false;
 
-    // ✅ 用于服务端调用，通知所有客户端显示胜利/失败
+    private void Start()
+    {
+        // ✅ 默认隐藏积分面板
+        if (scorePanel != null)
+            scorePanel.SetActive(false);
+    }
+
     [ClientRpc]
     public void RpcGameOver(bool isVictory)
     {
@@ -25,9 +38,10 @@ public class GameStateManager : NetworkBehaviour
 
         if (gameOverLose != null)
             gameOverLose.SetActive(!isVictory);
+
+        StartCoroutine(HideVictoryPanelAfterDelay());
     }
 
-    // ✅ 仍然保留本地调用接口（兼容原调用）
     public void GameOver(bool isVictory = true)
     {
         if (hasGameEnded) return;
@@ -41,5 +55,29 @@ public class GameStateManager : NetworkBehaviour
 
         if (gameOverLose != null)
             gameOverLose.SetActive(!isVictory);
+
+        StartCoroutine(HideVictoryPanelAfterDelay());
+    }
+
+    private IEnumerator HideVictoryPanelAfterDelay()
+    {
+        yield return new WaitForSeconds(3f);
+
+        if (victoryPanel != null)
+            victoryPanel.SetActive(false);
+
+        if (gameOverVictory != null)
+            gameOverVictory.SetActive(false);
+
+        if (gameOverLose != null)
+            gameOverLose.SetActive(false);
+
+        // ✅ 显示积分面板
+        if (scorePanel != null)
+            scorePanel.SetActive(true);
+
+        // ✅ 调用积分卡生成逻辑
+        if (scoreDrawFlow != null)
+            scoreDrawFlow.StartDrawPhase();
     }
 }

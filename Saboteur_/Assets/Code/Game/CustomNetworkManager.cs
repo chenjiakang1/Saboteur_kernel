@@ -67,7 +67,7 @@ public class CustomNetworkManager : NetworkManager
             PlayerController.isGameplayEnabled = true;
 
             // ✅ 延迟初始化玩家（防止还未生成完）
-            Invoke(nameof(InitAllPlayersForGame), 1.0f);
+            Invoke(nameof(InitAllPlayersForGame), 2.5f);
         }
     }
 
