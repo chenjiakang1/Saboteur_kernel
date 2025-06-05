@@ -50,4 +50,15 @@ public partial class PlayerController
 
         AddScore(value);
     }
+
+    [Command]
+    public void CmdRequestDestroyCard(string id)
+    {
+        var drawFlow = FindFirstObjectByType<ScoreCardDrawFlow>();
+        if (drawFlow != null)
+        {
+            drawFlow.RpcDestroyCardById(id);
+        }
+    }
+
 }

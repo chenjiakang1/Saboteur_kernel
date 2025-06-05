@@ -76,8 +76,9 @@ public class GameStateManager : NetworkBehaviour
         if (scorePanel != null)
             scorePanel.SetActive(true);
 
-        // ✅ 调用积分卡生成逻辑
-        if (scoreDrawFlow != null)
-            scoreDrawFlow.StartDrawPhase();
+        // ✅ 只让服务端调用生成积分卡逻辑
+        if (isServer && scoreDrawFlow != null)
+            scoreDrawFlow.StartDrawPhaseServer();
     }
+
 }
