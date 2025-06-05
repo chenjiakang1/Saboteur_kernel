@@ -1,6 +1,8 @@
 using UnityEngine;
 using Mirror;
 using System.Collections;
+using UnityEngine.UI;
+using TMPro;
 
 public class GameStateManager : NetworkBehaviour
 {
@@ -10,18 +12,32 @@ public class GameStateManager : NetworkBehaviour
     public GameObject gameOverLose;
 
     [Header("胜利后展示的积分面板")]
-    public GameObject scorePanel; // ✅ 拖入积分面板 UI
+    public GameObject scorePanel; // 拖入积分面板 UI
 
     [Header("积分卡生成控制器")]
-    public ScoreCardDrawFlow scoreDrawFlow; // ✅ 拖入 ScoreCardDrawFlow 脚本对象
+    public ScoreCardDrawFlow scoreDrawFlow; // 拖入 ScoreCardDrawFlow 脚本对象
 
+    [Header("胜者文本 UI")]
+    public TMP_Text winnerText;
     [HideInInspector] public bool hasGameEnded = false;
+
+    private uint winnerNetId = 0; // ✅ 本局胜者 NetId
+
+    public static GameStateManager Instance;
+
+    private void Awake()
+    {
+        if (Instance == null)
+            Instance = this;
+    }
 
     private void Start()
     {
-        // ✅ 默认隐藏积分面板
         if (scorePanel != null)
             scorePanel.SetActive(false);
+
+        if (winnerText != null)
+            winnerText.gameObject.SetActive(false); // 默认隐藏胜者文本
     }
 
     [ClientRpc]
@@ -38,6 +54,9 @@ public class GameStateManager : NetworkBehaviour
 
         if (gameOverLose != null)
             gameOverLose.SetActive(!isVictory);
+
+        // ✅ 显示胜者文本
+        ShowWinnerText();
 
         StartCoroutine(HideVictoryPanelAfterDelay());
     }
@@ -56,8 +75,25 @@ public class GameStateManager : NetworkBehaviour
         if (gameOverLose != null)
             gameOverLose.SetActive(!isVictory);
 
+        // ✅ 显示胜者文本
+        ShowWinnerText();
+
         StartCoroutine(HideVictoryPanelAfterDelay());
     }
+
+    private void ShowWinnerText()
+    {
+        if (winnerText == null) return;
+
+        var winner = GetWinnerPlayer();
+        if (winner != null)
+            winnerText.text = $" {winner.playerName} has reached the goal!";
+        else
+            winnerText.text = $"A player has reached the goal!";
+
+        winnerText.gameObject.SetActive(true);
+    }
+
 
     private IEnumerator HideVictoryPanelAfterDelay()
     {
@@ -72,13 +108,72 @@ public class GameStateManager : NetworkBehaviour
         if (gameOverLose != null)
             gameOverLose.SetActive(false);
 
-        // ✅ 显示积分面板
+        if (winnerText != null)
+            winnerText.gameObject.SetActive(false); // ✅ 隐藏胜者文本
+
         if (scorePanel != null)
             scorePanel.SetActive(true);
 
-        // ✅ 只让服务端调用生成积分卡逻辑
-        if (isServer && scoreDrawFlow != null)
-            scoreDrawFlow.StartDrawPhaseServer();
+        if (isServer)
+        {
+            ResetWinner();
+            if (scoreDrawFlow != null)
+                scoreDrawFlow.StartDrawPhaseServer();
+        }
+    }
+
+    [Server]
+    public void RegisterPlayerReachedGoal(NetworkIdentity identity)
+    {
+        if (identity == null) return;
+
+        if (winnerNetId == 0)
+        {
+            winnerNetId = identity.netId;
+            Debug.Log($"🏁 玩家 {winnerNetId} 到达终点，本局胜者已记录");
+
+            GameOver(true);
+        }
+    }
+
+    [Server]
+    public void ResetWinner()
+    {
+        winnerNetId = 0;
+        Debug.Log("🔁 已重置胜者 NetId");
+    }
+
+    public uint GetWinnerNetId()
+    {
+        return winnerNetId;
+    }
+
+    public PlayerController GetWinnerPlayer()
+    {
+        if (!NetworkServer.active)
+        {
+            Debug.LogWarning("❌ GetWinnerPlayer() called on client side, must be server.");
+            return null;
+        }
+
+        if (winnerNetId == 0)
+        {
+            Debug.LogWarning("❌ winnerNetId is 0. No player has been registered as winner.");
+            return null;
+        }
+
+        if (NetworkServer.spawned.TryGetValue(winnerNetId, out NetworkIdentity identity))
+        {
+            var pc = identity.GetComponent<PlayerController>();
+            if (pc == null)
+                Debug.LogWarning("❌ Winner found but missing PlayerController component.");
+            else
+                Debug.Log($"✅ Winner is: {pc.playerName}, NetId: {winnerNetId}");
+            return pc;
+        }
+
+        Debug.LogWarning($"❌ No spawned object found with winnerNetId: {winnerNetId}");
+        return null;
     }
 
 }

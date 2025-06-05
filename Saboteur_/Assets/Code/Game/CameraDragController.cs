@@ -34,7 +34,7 @@ public partial class PlayerController
                 hand.Insert(handIndex, new CardData(newCard));
         }
 
-        Object.FindFirstObjectByType<PathChecker>()?.CheckWinCondition();
+        Object.FindFirstObjectByType<PathChecker>()?.CheckWinCondition(netId);
     }
 
     [ClientRpc]
