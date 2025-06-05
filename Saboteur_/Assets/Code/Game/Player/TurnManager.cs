@@ -103,4 +103,11 @@ public class TurnManager : NetworkBehaviour
             return playerList[currentIndex].turnIndex;
         }
     }
+
+    public int GetPlayerCount()
+    {
+        return playerList.Count;
+
+
+    }
 }

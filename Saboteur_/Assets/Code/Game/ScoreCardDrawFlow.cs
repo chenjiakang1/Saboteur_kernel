@@ -9,9 +9,7 @@ public class ScoreCardDrawFlow : NetworkBehaviour
     public GameObject scoreCardPrefab;             // 拖入 ScoreCardDisplay 预制体
     public Transform scoreCardParent;              // 拖入 UI Grid 等父物体
 
-    private int numberOfCardsToDraw = 5;
-
-    // ✅ 服务端调用，统一洗牌并抽卡
+    // ✅ 服务端调用，统一洗牌并抽卡（每人一张）
     [Server]
     public void StartDrawPhaseServer()
     {
@@ -21,23 +19,27 @@ public class ScoreCardDrawFlow : NetworkBehaviour
 
         List<ScoreCardData> drawnCards = new();
 
-        for (int i = 0; i < numberOfCardsToDraw; i++)
+        // ✅ 获取玩家数量（动态决定抽几张卡）
+        int numberOfPlayers = TurnManager.Instance != null ? TurnManager.Instance.GetPlayerCount() : 1;
+
+        for (int i = 0; i < numberOfPlayers; i++)
         {
             var card = deckManager.DrawCard();
-            var data = card.ToData();            // ✅ 已在 ScoreCardData 中生成 cardId
+            var data = card.ToData();  // ✅ cardId 已在此生成
             drawnCards.Add(data);
         }
 
+        // ✅ 广播所有客户端生成 UI
         RpcDistributeScoreCards(drawnCards.ToArray());
     }
 
-    // ✅ 客户端接收分发：显示卡牌 UI
+    // ✅ 客户端生成积分卡 UI（由服务端广播调用）
     [ClientRpc]
     void RpcDistributeScoreCards(ScoreCardData[] cards)
     {
         Debug.Log($"📦 [客户端] 接收到 {cards.Length} 张积分卡 → 开始生成 UI");
 
-        // 清空原有 UI
+        // 清空已有卡牌 UI
         foreach (Transform child in scoreCardParent)
         {
             Destroy(child.gameObject);
@@ -49,18 +51,16 @@ public class ScoreCardDrawFlow : NetworkBehaviour
             var display = go.GetComponent<ScoreCardDisplay>();
             display.cardIndex = i;
 
-            // ✅ 用 spriteName 加载图片
+            // ✅ 加载图像资源
             Sprite sprite = LoadSprite(cards[i].spriteName);
             display.Init(cards[i], sprite);
 
-            // ✅ 设置服务端生成的 cardId（关键！）
+            // ✅ 从服务端同步设置统一 cardId
             display.cardId = cards[i].cardId;
         }
     }
 
-    /// <summary>
-    /// 客户端根据 sprite 名称加载图像资源
-    /// </summary>
+    // ✅ 用于加载积分卡图片
     private Sprite LoadSprite(string name)
     {
         Debug.Log($"🖼️ 正在加载图像：{name}");
@@ -76,25 +76,21 @@ public class ScoreCardDrawFlow : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// 玩家点击卡牌后调用（UI 高亮等）
-    /// </summary>
+    // ✅ 点击卡片时通知逻辑层（UI 高亮等）
     public void OnCardSelected(ScoreCardDisplay display)
     {
-        Debug.Log($"✅ 你点击了积分卡：{display.data.cardName}（分数：{display.data.scoreValue}）");
+        Debug.Log($"✅ 玩家点击积分卡：{display.data.cardName}（分数：{display.data.scoreValue}）");
 
-        // 禁用点击
+        // 禁用点击按钮
         display.GetComponent<UnityEngine.UI.Button>().interactable = false;
 
-        // 高亮（可选）
+        // 高亮边框（可选）
         var outline = display.GetComponent<UnityEngine.UI.Outline>();
         if (outline != null)
             outline.enabled = true;
     }
 
-    /// <summary>
-    /// 服务端 → 广播销毁指定卡牌 ID，所有客户端执行
-    /// </summary>
+    // ✅ 服务端 → 所有客户端广播销毁指定卡牌
     [ClientRpc]
     public void RpcDestroyCardById(string id)
     {
@@ -103,7 +99,7 @@ public class ScoreCardDrawFlow : NetworkBehaviour
         {
             if (card.cardId == id)
             {
-                Debug.Log($"🗑️ 销毁卡牌 ID={id}");
+                Debug.Log($"🗑️ 客户端销毁卡牌 ID={id}");
                 Destroy(card.gameObject);
                 break;
             }
