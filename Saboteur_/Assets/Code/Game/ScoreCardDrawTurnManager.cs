@@ -16,9 +16,6 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
         Instance = this;
     }
 
-    /// <summary>
-    /// Called by the server to initiate the score card drawing phase.
-    /// </summary>
     [Server]
     public void StartDrawPhase(PlayerRole winnerRole)
     {
@@ -61,9 +58,6 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
         BeginTurn();
     }
 
-    /// <summary>
-    /// Server begins the turn for the current player.
-    /// </summary>
     [Server]
     private void BeginTurn()
     {
@@ -79,18 +73,13 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Server ends the current player's turn and moves to the next.
-    /// </summary>
     [Server]
     public void EndCurrentTurnAndMoveNext()
     {
         if (turnList.Count == 0) return;
 
-        // Turn off current player's turn
         turnList[currentTurnIndex].TargetSetDrawTurn(turnList[currentTurnIndex].connectionToClient, false);
 
-        // Check if there are still cards left
         int remainingCards = FindObjectsByType<ScoreCardDisplay>(FindObjectsSortMode.None).Length;
 
         if (remainingCards == 0)
@@ -99,16 +88,11 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
             EndDrawPhase();
             return;
         }
-
-        // Move to the next player in a loop
         currentTurnIndex = (currentTurnIndex + 1) % turnList.Count;
 
         BeginTurn();
     }
 
-    /// <summary>
-    /// Called by the server to end the draw phase.
-    /// </summary>
     [Server]
     private void EndDrawPhase()
     {
@@ -118,13 +102,8 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
         {
             player.TargetSetDrawTurn(player.connectionToClient, false);
         }
-
-        // TODO: You may want to call into final scoring, game end, or transition here.
     }
 
-    /// <summary>
-    /// Called by a client to request their turn end after drawing.
-    /// </summary>
     [Command]
     public void CmdRequestEndTurn(NetworkIdentity senderNetId)
     {
@@ -142,9 +121,6 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Alternative server-side method that uses direct player reference.
-    /// </summary>
     [Server]
     public void ServerReceiveDrawEnd(PlayerController sender)
     {
@@ -159,9 +135,6 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Get current player in turn.
-    /// </summary>
     public PlayerController GetCurrentPlayer()
     {
         if (currentTurnIndex >= 0 && currentTurnIndex < turnList.Count)
@@ -169,25 +142,16 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
         return null;
     }
 
-    /// <summary>
-    /// Get the list of players allowed to draw.
-    /// </summary>
     public List<PlayerController> GetDrawTurnOrder()
     {
         return new List<PlayerController>(turnList);
     }
 
-    /// <summary>
-    /// Checks whether the given player is in the draw list.
-    /// </summary>
     public bool IsPlayerInDrawList(PlayerController player)
     {
         return turnList.Contains(player);
     }
 
-    /// <summary>
-    /// Get index of a player in draw turn list.
-    /// </summary>
     public int GetTurnIndex(PlayerController player)
     {
         return turnList.IndexOf(player);
