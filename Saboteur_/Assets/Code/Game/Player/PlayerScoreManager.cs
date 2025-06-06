@@ -61,4 +61,42 @@ public partial class PlayerController
         }
     }
 
+    [TargetRpc]
+    public void TargetSetDrawTurn(NetworkConnection target, bool isTurn)
+    {
+        if (!PlayerController.isGameplayEnabled) return;
+
+        isMyTurn = isTurn;
+
+        Debug.Log($"🎯 TargetSetDrawTurn: 是否轮到我抽卡 = {isTurn}");
+
+        if (isLocalPlayer && isTurn)
+        {
+            Debug.Log("🟢 轮到你抽积分卡，请选择一张");
+            // TODO: 可触发 UI 提示，例如显示一个“请抽卡”图标
+        }
+    }
+
+    [Command]
+    public void CmdRequestScoreDrawEnd()
+    {
+        if (ScoreCardDrawTurnManager.Instance != null)
+        {
+            Debug.Log($"📨 CmdRequestScoreDrawEnd 被调用，玩家：{playerName}");
+            ScoreCardDrawTurnManager.Instance.ServerReceiveDrawEnd(this);
+        }
+    }
+
+
+
+    [Command]
+    public void CmdEndMyTurn()
+    {
+        if (isMyTurn && isServer)
+        {
+            TurnManager.Instance.NextTurn();
+        }
+    }
+
+
 }

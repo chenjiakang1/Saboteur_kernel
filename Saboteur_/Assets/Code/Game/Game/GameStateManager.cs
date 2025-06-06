@@ -116,10 +116,20 @@ public class GameStateManager : NetworkBehaviour
 
         if (isServer)
         {
+            var winner = GetWinnerPlayer();
+            if (winner != null)
+            {
+                var role = winner.assignedRole;
+                Debug.Log($"🎯 胜利玩家身份是：{role} → 开始该身份玩家的抽卡流程");
+
+                ScoreCardDrawTurnManager.Instance?.StartDrawPhase(role);
+            }
+
             ResetWinner();
             if (scoreDrawFlow != null)
-                scoreDrawFlow.StartDrawPhaseServer();
+                scoreDrawFlow.StartDrawPhaseServer(); // ✅ UI部分继续保留
         }
+
     }
 
     [Server]

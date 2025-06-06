@@ -48,4 +48,9 @@ public partial class PlayerController
             if (saboteurImage != null) saboteurImage.SetActive(newRole == PlayerRole.Saboteur);
         }
     }
+    public PlayerRole GetRole()
+    {
+        return assignedRole;
+    }
+
 }
