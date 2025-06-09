@@ -19,15 +19,25 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
     [Server]
     public void StartDrawPhase(PlayerRole winnerRole)
     {
-        Debug.Log($"🏁 Score card draw phase started. Winning role: {winnerRole}");
+        Debug.Log($"🏁 Score card draw phase started. Original winning role: {winnerRole}");
 
         turnList.Clear();
         currentTurnIndex = 0;
-        CurrentWinningRole = winnerRole;
 
         var allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
         PlayerController winner = GameStateManager.Instance?.GetWinnerPlayer();
 
+        // 🛠 若到达终点的是破坏者，则强制将抽卡角色设置为矿工
+        if (winner != null && winner.assignedRole == PlayerRole.Saboteur)
+        {
+            Debug.Log("🔄 Winner is Saboteur. Overriding draw role to Miner.");
+            winnerRole = PlayerRole.Miner;
+        }
+
+        // 更新最终确认的抽卡角色身份
+        CurrentWinningRole = winnerRole;
+
+        // 👥 收集所有 winnerRole 的玩家（修正后可能是 Miner）
         foreach (var player in allPlayers)
         {
             if (player.assignedRole == winnerRole)
@@ -36,7 +46,8 @@ public class ScoreCardDrawTurnManager : NetworkBehaviour
             }
         }
 
-        if (winner != null && turnList.Contains(winner))
+        // ✅ 若到达终点的是矿工本人，优先插入开头
+        if (winner != null && winner.assignedRole == winnerRole && turnList.Contains(winner))
         {
             turnList.Remove(winner);
             turnList.Insert(0, winner); // Ensure the winner starts first

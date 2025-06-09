@@ -21,7 +21,7 @@ public class TurnDisplayUI : MonoBehaviour
         }
         else
         {
-            turnText.text = $"Current Turn: Player {current}";
+            turnText.text = $"It's not your turn.";
         }
 
     }
