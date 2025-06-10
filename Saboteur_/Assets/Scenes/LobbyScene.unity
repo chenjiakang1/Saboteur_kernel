@@ -167,17 +167,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
+  m_ReferenceResolution: {x: 1280, y: 720}
   m_ScreenMatchMode: 0
   m_MatchWidthOrHeight: 0
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 1
+  m_PresetInfoIsWorld: 0
 --- !u!223 &108065126
 Canvas:
   m_ObjectHideFlags: 0
@@ -187,7 +187,7 @@ Canvas:
   m_GameObject: {fileID: 108065123}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 2
+  m_RenderMode: 1
   m_Camera: {fileID: 462298072}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
@@ -209,8 +209,8 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 108065123}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 90}
-  m_LocalScale: {x: 0.017857144, y: 0.017857144, z: 0.017857144}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 643413968}
@@ -221,8 +221,8 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1295, y: 560}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0, y: 0}
 --- !u!1 &277248553
 GameObject:
   m_ObjectHideFlags: 0
@@ -1576,7 +1576,7 @@ GameObject:
   - component: {fileID: 846156548}
   - component: {fileID: 846156547}
   - component: {fileID: 846156546}
-  - component: {fileID: 846156549}
+  - component: {fileID: 846156550}
   m_Layer: 5
   m_Name: 'CreateRoomButton '
   m_TagString: Untagged
@@ -1648,8 +1648,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 846156549}
-        m_TargetAssemblyTypeName: ReturnToScene, Assembly-CSharp
+      - m_Target: {fileID: 846156550}
+        m_TargetAssemblyTypeName: SceneTransition, Assembly-CSharp
         m_MethodName: OnReturnButtonClick
         m_Mode: 1
         m_Arguments:
@@ -1698,7 +1698,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 846156544}
   m_CullTransparentMesh: 1
---- !u!114 &846156549
+--- !u!114 &846156550
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1710,7 +1710,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 438deea956dfe41e28727401573993a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetSceneName: Create_a_room_scene
+  targetSceneName: StartScene
 --- !u!1 &1008600138
 GameObject:
   m_ObjectHideFlags: 0
@@ -2556,8 +2556,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchoredPosition: {x: 0, y: -2}
+  m_SizeDelta: {x: 100, y: 104.01}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1563446912
 MonoBehaviour:
